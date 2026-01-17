@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block title %}Test Jarayoni{% endblock %}
+
+{% block content %}
+<div class="h-screen flex flex-col bg-gray-100" id="test-app">
+    <noscript>
+        <div class="fixed inset-0 bg-red-900 z-50 flex flex-col items-center justify-center text-white text-center p-8">
+            <h1 class="text-3xl font-bold mb-4">DIQQAT!</h1>
+            <p class="text-xl mb-6">Talaba, sizda JavaScript o'chirilgan yoki bloklangan.</p>
+            <p class="mb-8">Tizimda ishlash uchun va Test topshirish uchun <strong>Javascript yoqilishi shart!</strong>
+            </p>
+            <p class="text-sm bg-white text-red-900 px-4 py-2 rounded">Sozlamalarga kirib Javascriptni yoqing va
+                sahifani yangilang.</p>
+        </div>
+    </noscript>
+    <!-- Header -->
+    <header class="bg-white shadow-md p-4 flex justify-between items-center z-10">
+        <h2 class="text-xl font-bold text-gray-800" id="test-title">Yuklanmoqda...</h2>
+        <div class="flex items-center space-x-6">
+            <div class="text-lg font-mono font-bold text-primary-900 bg-blue-100 px-4 py-1 rounded" id="timer">--:--
+            </div>
+            <div class="text-sm text-gray-600">
+                Savol: <span id="current-q-num">1</span>/<span id="total-q-count">--</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-hidden flex">
+        <!-- Questions Sidebar -->
+        <div class="w-64 bg-white border-r p-4 overflow-y-auto hidden md:block">
+            <h3 class="font-bold mb-4">Savollar</h3>
+            <div class="grid grid-cols-4 gap-2" id="questions-grid">
+                <!-- Javascript will populate this -->
+            </div>
+        </div>
+
+        <!-- Question Area -->
+        <div class="flex-1 p-8 overflow-y-auto flex flex-col items-center">
+            <div class="w-full max-w-3xl bg-white p-8 rounded-lg shadow-lg">
+                <div class="mb-6">
+                    <span class="inline-block bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded mb-2">Savol
+                        #<span id="q-index"></span></span>
+                    <p class="text-xl font-medium text-gray-800" id="question-text"></p>
+                </div>
+
+                <div class="space-y-3" id="options-container">
+                    <!-- Options injected here -->
+                </div>
+
+                <div class="mt-8 flex justify-between">
+                    <button id="prev-btn"
+                        class="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-gray-600">Oldingi</button>
+                    <button id="next-btn"
+                        class="px-6 py-2 bg-primary-900 text-white rounded hover:bg-primary-800">Keyingi</button>
+                    <button id="finish-btn"
+                        class="hidden px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">Yakunlash</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const TEST_ID = {{ test_id }};
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let answers = {};
+    let timeLeft = 0;
+    let timerInterval;
+
+    // Helpers
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // Core Logic
+    async function initTest() {
+        if (!localStorage.getItem('access_token')) {
+            window.location.href = '/login/';
+            return;
+        }
+
+        try {
+            // Fetch Test Questions (Randomized)
+            const testRes = await axios.get(`/api/tests/${TEST_ID}/start/`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+            });
+            const testData = testRes.data;
+            document.getElementById('test-title').textContent = testData.title;
+            timeLeft = testData.duration * 60;
+
+            questions = testData.questions || [];
+
+            // Pre-shuffle options for each question
+            questions.forEach(q => {
+                const baseOpts = [
+                    { key: 'A', text: q.option_a },
+                    { key: 'B', text: q.option_b },
+                    { key: 'C', text: q.option_c },
+                    { key: 'D', text: q.option_d }
+                ];
+                q.shuffledOptions = shuffleArray(baseOpts);
+            });
+
+            document.getElementById('total-q-count').textContent = questions.length;
+
+            startTimer();
+            renderGrid();
+            renderQuestion(0);
+
+            // Anti-cheat listeners
+            setupAntiCheat();
+
+        } catch (error) {
+            console.error(error);
+            showModal("Xatolik", error.response?.data?.error || error.message, () => {
+                window.location.href = '/dashboard/';
+            });
+        }
+    }
+
+    function startTimer() {
+        const timerEl = document.getElementById('timer');
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                finishTest(true); // Auto finish
+            }
+
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            timerEl.textContent = `${m}:${s}`;
+
+            // Visual warning
+            if (timeLeft < 60) timerEl.classList.add('text-red-600', 'animate-pulse');
+        }, 1000);
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('questions-grid');
+        grid.innerHTML = questions.map((_, i) => `
+            <button onclick="renderQuestion(${i})" id="q-btn-${i}" 
+                class="w-full aspect-square flex items-center justify-center border rounded hover:bg-gray-100 text-sm font-medium ${answers[questions[i].id] ? 'bg-blue-100 border-blue-300' : 'bg-gray-50'}">
+                ${i + 1}
+            </button>
+        `).join('');
+    }
+
+    function renderQuestion(index) {
+        if (index < 0 || index >= questions.length) return;
+        currentQuestionIndex = index;
+
+        const q = questions[index];
+        document.getElementById('q-index').textContent = index + 1;
+        document.getElementById('current-q-num').textContent = index + 1;
+        document.getElementById('question-text').innerHTML = q.question_text || q.text;
+
+        // Options
+        const container = document.getElementById('options-container');
+
+        // Use pre-shuffled options
+        const opts = q.shuffledOptions;
+        const labels = ['A', 'B', 'C', 'D'];
+
+        // Check if previously answered
+        const currentAns = answers[q.id];
+
+        container.innerHTML = opts.map((opt, idx) => {
+            const label = labels[idx];
+            // We use opt.key (original key) for logic, but label for display
+            return `
+            <div onclick="selectAnswer(${q.id}, '${opt.key}')" 
+                class="p-4 border rounded-lg cursor-pointer transition hover:bg-gray-50 flex items-center cursor-pointer ${currentAns === opt.key ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-gray-200'}">
+                <span class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-700 font-bold mr-3 ${currentAns === opt.key ? 'bg-primary-600 text-white' : ''}">${label}</span>
+                <span class="text-gray-800">${opt.text}</span>
+            </div>
+            `;
+        }).join('');
+
+        // Buttons state
+        document.getElementById('prev-btn').disabled = index === 0;
+        document.getElementById('next-btn').classList.toggle('hidden', index === questions.length - 1);
+        document.getElementById('finish-btn').classList.toggle('hidden', index !== questions.length - 1);
+
+        // Update Grid UI
+        renderGrid();
+    }
+
+    function selectAnswer(qId, key) {
+        answers[qId] = key;
+        renderQuestion(currentQuestionIndex); // Re-render to show selection
+    }
+
+    async function finishTest(auto = false, violation = false) {
+        const btn = document.getElementById('finish-btn');
+        if (btn && btn.disabled) return; // Already finishing
+
+        if (auto) {
+            submitTest(violation);
+        } else {
+            showModal("Tasdiqlash", "Testni yakunlashga ishonchingiz komilmi?",
+                () => { // Confirm
+                    submitTest();
+                },
+                () => { // Cancel
+                    if (btn) btn.disabled = false;
+                }
+            );
+        }
+    }
+
+    async function submitTest(violation = false) {
+        clearInterval(timerInterval);
+        const btn = document.getElementById('finish-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Yuklanmoqda...';
+        }
+
+        try {
+            const res = await axios.post(`/api/tests/${TEST_ID}/submit/`, {
+                answers: answers
+            }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+            });
+
+            // Show Result
+            const data = res.data;
+            let title = "Natija";
+            let msg = data.message;
+            if (violation) {
+                title = "TEST YAKUNLANDI!";
+                msg = "Siz test oynasidan chiqib ketganingiz uchun test avtomatik yakunlandi!\n" + msg;
+            }
+
+            showModal(title, msg + `\nTo'plangan ball: ${data.score}/${data.max_score} (${data.percentage.toFixed(1)}%)`, () => {
+                window.location.href = '/dashboard/';
+            });
+
+        } catch (e) {
+            console.error(e);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Yakunlash';
+            }
+
+            // Handle specifically "Already taken" error gracefully
+            if (e.response && e.response.status === 400 && e.response.data.error === 'Siz bu testni topshirgansiz.') {
+                showModal("Xatolik", "Siz bu testni allaqachon topshirgansiz. Natijalar saqlangan.", () => {
+                    window.location.href = '/dashboard/';
+                });
+                return;
+            }
+
+            showModal("Xatolik", "Natijani saqlashda xatolik: " + (e.response?.data?.error || e.message), () => {
+                window.location.href = '/dashboard/';
+            });
+        }
+    }
+
+    function setupAntiCheat() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Submit immediately with violation flag
+                finishTest(true, true);
+            }
+        });
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    // Controls
+    document.getElementById('prev-btn').onclick = () => renderQuestion(currentQuestionIndex - 1);
+    document.getElementById('next-btn').onclick = () => renderQuestion(currentQuestionIndex + 1);
+    document.getElementById('finish-btn').onclick = () => finishTest();
+
+    // Start
+    initTest();
+</script>
+{% endblock %}

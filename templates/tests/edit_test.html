@@ -1,0 +1,486 @@
+{% extends 'base.html' %}
+
+{% block title %}Testni Tahrirlash - Universitet Test Tizimi{% endblock %}
+
+{% block content %}
+<div class="flex h-screen bg-gray-50">
+    <!-- Sidebar (Simplified from crud_list, or we can just keep basic nav) -->
+    {% include 'includes/sidebar.html' %}
+
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white shadow-sm z-10 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800">Testni Tahrirlash</h2>
+            <button onclick="saveTestDetails()"
+                class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                Saqlash
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+            <div class="max-w-4xl mx-auto space-y-6">
+                <!-- Metadata Card -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Asosiy Ma'lumotlar</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Test Nomi</label>
+                            <input type="text" id="test-title"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Fan</label>
+                            <select id="test-subject"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Boshlanish Vaqti</label>
+                            <input type="datetime-local" id="test-start"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Tugash Vaqti</label>
+                            <input type="datetime-local" id="test-end"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Vaqt (daqiqa)</label>
+                            <input type="number" id="test-duration"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">O'tish Bali</label>
+                            <input type="number" id="test-passing"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Holat</label>
+                            <select id="test-status"
+                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                                <option value="scheduled">Rejada</option>
+                                <option value="active">Faol</option>
+                                <option value="completed">Yakunlangan</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Questions Card -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="text-lg font-medium text-gray-900">Savollar Listi</h3>
+                        <button onclick="openQuestionModal()"
+                            class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition">
+                            + Yangi Savol
+                        </button>
+                    </div>
+
+                    <div id="questions-list" class="space-y-4">
+                        <!-- Questions injected here -->
+                        <p class="text-gray-500 text-center">Yuklanmoqda...</p>
+                    </div>
+                </div>
+
+                <!-- Group Assignment Card -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="text-lg font-medium text-gray-900">Guruhlarga Biriktirish</h3>
+                        <button onclick="saveGroups()"
+                            class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700 transition">
+                            Guruhlarni Saqlash
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        <select id="filter-course" class="border p-2 rounded text-sm" onchange="filterGroups()">
+                            <option value="">Barcha Kurslar</option>
+                        </select>
+                        <select id="filter-edu-form" class="border p-2 rounded text-sm" onchange="filterGroups()">
+                            <option value="">Barcha Ta'lim Shakllari</option>
+                        </select>
+                        <select id="filter-direction" class="border p-2 rounded text-sm" onchange="filterGroups()">
+                            <option value="">Barcha Yo'nalishlar</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <input type="text" id="group-search" placeholder="Guruh nomini qidirish..."
+                            class="w-full border p-2 rounded text-sm" onkeyup="filterGroups()">
+                    </div>
+                    <div id="groups-list"
+                        class="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-2 border rounded">
+                        <p class="text-gray-500">Guruhlar yuklanmoqda...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Question Modal -->
+<div id="questionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <h3 class="text-lg font-bold text-gray-900 mb-4" id="qModalTitle">Savol Qo'shish</h3>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-gray-700">Savol Matni</label>
+                <textarea id="q-text" rows="3" class="w-full border p-2 rounded"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Variant A</label>
+                    <input type="text" id="q-a" class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Variant B</label>
+                    <input type="text" id="q-b" class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Variant C</label>
+                    <input type="text" id="q-c" class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Variant D</label>
+                    <input type="text" id="q-d" class="w-full border p-2 rounded">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700">To'g'ri Javob</label>
+                <select id="q-correct" class="w-full border p-2 rounded">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700">Ball</label>
+                    <input type="number" id="q-score" value="2" class="w-full border p-2 rounded">
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+            <button onclick="closeQuestionModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Bekor
+                qilish</button>
+            <button onclick="saveQuestion()"
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Saqlash</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const TEST_ID = {{ test_id }};
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/login/';
+
+    let currentQuestionId = null;
+
+    // Load Initial Data
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            await Promise.all([loadSubjects(), loadTestDetails(), loadQuestions(), loadGroups()]);
+
+            // Sidebar Logic
+            const userRes = await axios.get('/api/accounts/profile/', { headers: { Authorization: `Bearer ${token}` } });
+            const user = userRes.data;
+
+            if (['admin', 'dean'].includes(user.role)) {
+                document.getElementById('menu-students').classList.remove('hidden');
+                document.getElementById('menu-groups').classList.remove('hidden');
+                document.getElementById('menu-results').classList.remove('hidden');
+            }
+            if (['admin', 'teacher'].includes(user.role)) {
+                document.getElementById('menu-subjects').classList.remove('hidden');
+                document.getElementById('menu-tests').classList.remove('hidden');
+            }
+            if (user.role === 'admin') {
+                document.getElementById('menu-employees').classList.remove('hidden');
+                document.getElementById('menu-directions').classList.remove('hidden');
+            }
+
+            // Highlight current page
+            const testsLink = document.getElementById('menu-tests');
+            if (testsLink) testsLink.classList.add('bg-primary-800');
+
+        } catch (e) {
+            console.error(e);
+            alert('Ma\'lumotlarni yuklashda xatolik!');
+        }
+    });
+
+    let allGroups = [];
+    let assignedGroupIds = new Set();
+
+    async function loadGroups() {
+        // Fetch all groups
+        const res = await axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } });
+        allGroups = res.data.results || res.data;
+        populateFilters();
+        renderGroups();
+    }
+
+    function populateFilters() {
+        // Extract unique values
+        const courses = [...new Set(allGroups.map(g => g.course))].filter(x => x).sort();
+        const eduForms = [...new Set(allGroups.map(g => g.education_form))].filter(x => x).sort();
+        const directions = [...new Set(allGroups.map(g => g.direction))].filter(x => x).sort();
+
+        const courseSel = document.getElementById('filter-course');
+        courses.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c + '-kurs';
+            courseSel.appendChild(opt);
+        });
+
+        const eduSel = document.getElementById('filter-edu-form');
+        eduForms.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e;
+            opt.textContent = e;
+            eduSel.appendChild(opt);
+        });
+
+        const dirSel = document.getElementById('filter-direction');
+        directions.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            dirSel.appendChild(opt);
+        });
+    }
+
+    function renderGroups() {
+        const search = document.getElementById('group-search') ? document.getElementById('group-search').value.toLowerCase() : '';
+        const fCourse = document.getElementById('filter-course').value;
+        const fEdu = document.getElementById('filter-edu-form').value;
+        const fDir = document.getElementById('filter-direction').value;
+
+        const container = document.getElementById('groups-list');
+
+        // 1. Filter
+        let filtered = allGroups.filter(g => {
+            const matchesSearch = g.name.toLowerCase().includes(search);
+            const matchesCourse = fCourse === '' || g.course == fCourse;
+            const matchesEdu = fEdu === '' || g.education_form === fEdu;
+            const matchesDir = fDir === '' || g.direction === fDir;
+            return matchesSearch && matchesCourse && matchesEdu && matchesDir;
+        });
+
+        // 2. Sort: Assigned first, then Alphabetical
+        filtered.sort((a, b) => {
+            const aAssigned = assignedGroupIds.has(a.id);
+            const bAssigned = assignedGroupIds.has(b.id);
+            if (aAssigned && !bAssigned) return -1;
+            if (!aAssigned && bAssigned) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        container.innerHTML = filtered
+            .map(g => {
+                const isChecked = assignedGroupIds.has(g.id) ? 'checked' : '';
+                const bgClass = isChecked ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-transparent';
+
+                return `
+                <div class="flex items-center space-x-2 border p-2 rounded ${bgClass}">
+                    <input type="checkbox" id="group-${g.id}" value="${g.id}" class="rounded text-indigo-600 focus:ring-indigo-500" ${isChecked}>
+                    <label for="group-${g.id}" class="text-sm text-gray-700 cursor-pointer select-none w-full">${g.name}</label>
+                </div>
+                `;
+            }).join('');
+
+        if (container.innerHTML === '') container.innerHTML = '<p class="text-gray-400 text-sm p-2 col-span-3 text-center">Mos guruhlar topilmadi</p>';
+    }
+
+    window.filterGroups = renderGroups;
+
+    async function saveGroups() {
+        const checkboxes = document.querySelectorAll('#groups-list input[type="checkbox"]:checked');
+        const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        try {
+            const res = await axios.post(`/api/tests/${TEST_ID}/update-groups/`, { group_ids: selectedIds }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            showModal('Muvaffaqiyatli', res.data.message);
+            // Update local state
+            assignedGroupIds = new Set(selectedIds);
+            renderGroups();
+        } catch (e) {
+            console.error(e);
+            showModal('Xatolik', 'Guruhlarni saqlashda xatolik');
+        }
+    }
+
+    async function loadSubjects() {
+        const res = await axios.get('/api/subjects/', { headers: { Authorization: `Bearer ${token}` } });
+        const select = document.getElementById('test-subject');
+
+        // Handle pagination if present
+        const subjects = res.data.results || res.data;
+
+        select.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+
+    async function loadTestDetails() {
+        const res = await axios.get(`/api/tests/${TEST_ID}/`, { headers: { Authorization: `Bearer ${token}` } });
+        const test = res.data;
+
+
+        document.getElementById('test-title').value = test.title;
+        document.getElementById('test-subject').value = test.subject;
+        document.getElementById('test-start').value = test.start_date ? test.start_date.slice(0, 16) : '';
+        document.getElementById('test-end').value = test.end_date ? test.end_date.slice(0, 16) : '';
+        document.getElementById('test-duration').value = test.duration;
+        document.getElementById('test-passing').value = test.passing_score;
+        document.getElementById('test-status').value = test.status;
+
+        // Process Assignments
+        if (test.assignments) {
+            assignedGroupIds = new Set(test.assignments.map(a => a.group)); // Assuming serializer returns group ID in assignment or check structure
+            // Wait, serializer TestAssignmentSerializer has `group_details` and `group` (pk). 
+            // Let's verify serializer. 
+            // TestAssignmentSerializer: group (pk), group_details (obj).
+            // TestSerializer: assignments (many=TestAssignmentSerializer).
+            // So a.group is the ID.
+            assignedGroupIds = new Set(test.assignments.map(a => a.group));
+            renderGroups();
+        }
+    }
+
+    async function saveTestDetails() {
+        const data = {
+            title: document.getElementById('test-title').value,
+            subject: document.getElementById('test-subject').value,
+            start_date: document.getElementById('test-start').value,
+            end_date: document.getElementById('test-end').value,
+            end_date: document.getElementById('test-end').value,
+            duration: document.getElementById('test-duration').value,
+            passing_score: document.getElementById('test-passing').value,
+            status: document.getElementById('test-status').value
+        };
+
+        try {
+            await axios.patch(`/api/tests/${TEST_ID}/`, data, { headers: { Authorization: `Bearer ${token}` } });
+            showModal('Muvaffaqiyatli', 'Test ma\'lumotlari saqlandi!');
+        } catch (e) {
+            console.error(e);
+            showModal('Xatolik', 'Saqlashda xatolik yuz berdi');
+        }
+    }
+
+    async function loadQuestions() {
+        // Use the new filter capability
+        const res = await axios.get(`/api/questions/?test=${TEST_ID}`, { headers: { Authorization: `Bearer ${token}` } });
+        const questions = res.data.results || res.data;
+
+        const container = document.getElementById('questions-list');
+        if (questions.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center py-4">Savollar mavjud emas.</p>';
+            return;
+        }
+
+        container.innerHTML = questions.map((q, idx) => `
+            <div class="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition relative group">
+                <div class="absolute top-4 right-4 hidden group-hover:flex space-x-2">
+                    <button onclick="editQuestion(${q.id})" class="text-blue-600 hover:text-blue-800">✏️</button>
+                    <button onclick="deleteQuestion(${q.id})" class="text-red-600 hover:text-red-800">🗑️</button>
+                </div>
+                <p class="font-bold text-gray-800 mb-2">${idx + 1}. ${q.question_text}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                    <div class="${q.correct_answer === 'A' ? 'text-green-600 font-bold' : ''}">A) ${q.option_a}</div>
+                    <div class="${q.correct_answer === 'B' ? 'text-green-600 font-bold' : ''}">B) ${q.option_b}</div>
+                    <div class="${q.correct_answer === 'C' ? 'text-green-600 font-bold' : ''}">C) ${q.option_c}</div>
+                    <div class="${q.correct_answer === 'D' ? 'text-green-600 font-bold' : ''}">D) ${q.option_d}</div>
+                </div>
+                 <div class="mt-2 text-xs text-gray-400">Ball: ${q.score}</div>
+            </div>
+        `).join('');
+    }
+
+    // Question Modal Logic
+    function openQuestionModal() {
+        currentQuestionId = null;
+        document.getElementById('qModalTitle').textContent = "Yangi Savol Qo'shish";
+        // Clear fields
+        document.getElementById('q-text').value = '';
+        ['a', 'b', 'c', 'd'].forEach(x => document.getElementById(`q-${x}`).value = '');
+        document.getElementById('q-correct').value = 'A';
+        document.getElementById('q-score').value = 2;
+
+        document.getElementById('questionModal').classList.remove('hidden');
+    }
+
+    async function editQuestion(id) {
+        currentQuestionId = id;
+        document.getElementById('qModalTitle').textContent = "Savolni Tahrirlash";
+
+        try {
+            const res = await axios.get(`/api/questions/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+            const q = res.data;
+
+            document.getElementById('q-text').value = q.question_text;
+            document.getElementById('q-a').value = q.option_a;
+            document.getElementById('q-b').value = q.option_b;
+            document.getElementById('q-c').value = q.option_c;
+            document.getElementById('q-d').value = q.option_d;
+            document.getElementById('q-correct').value = q.correct_answer;
+            document.getElementById('q-score').value = q.score;
+
+            document.getElementById('questionModal').classList.remove('hidden');
+        } catch (e) {
+            console.error(e);
+            alert('Savol ma\'lumotlarini yuklashda xatolik');
+        }
+    }
+
+    function closeQuestionModal() {
+        document.getElementById('questionModal').classList.add('hidden');
+    }
+
+    async function saveQuestion() {
+        const payload = {
+            test: TEST_ID,
+            question_text: document.getElementById('q-text').value,
+            option_a: document.getElementById('q-a').value,
+            option_b: document.getElementById('q-b').value,
+            option_c: document.getElementById('q-c').value,
+            option_d: document.getElementById('q-d').value,
+            correct_answer: document.getElementById('q-correct').value,
+            score: document.getElementById('q-score').value
+        };
+
+        try {
+            if (currentQuestionId) {
+                await axios.put(`/api/questions/${currentQuestionId}/`, payload, { headers: { Authorization: `Bearer ${token}` } });
+            } else {
+                await axios.post('/api/questions/', payload, { headers: { Authorization: `Bearer ${token}` } });
+            }
+            closeQuestionModal();
+            loadQuestions();
+        } catch (e) {
+            console.error(e);
+            alert('Saqlashda xatolik: ' + (e.response?.data?.detail || 'Noma\'lum xatolik'));
+        }
+    }
+
+    async function deleteQuestion(id) {
+        if (!confirm('Haqiqatan ham bu savolni o\'chirmoqchimisiz?')) return;
+
+        try {
+            await axios.delete(`/api/questions/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+            loadQuestions();
+        } catch (e) {
+            console.error(e);
+            alert('O\'chirishda xatolik');
+        }
+    }
+
+</script>
+{% endblock %}

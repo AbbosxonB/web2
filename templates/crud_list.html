@@ -1,0 +1,1363 @@
+{% extends 'base.html' %}
+
+{% block title %}Ro'yxat - Universitet Test Tizimi{% endblock %}
+
+{% block content %}
+<div class="flex h-screen bg-gray-100" id="list-app">
+    <!-- Sidebar -->
+    {% include 'includes/sidebar.html' %}
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white shadow-sm z-10 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800" id="page-title">Yuklanmoqda...</h2>
+            <div class="flex space-x-4">
+                <input type="text" id="searchInput" placeholder="Qidirish..."
+                    class="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onkeyup="handleSearch(event)">
+                <button onclick="openCreateModal()"
+                    class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 transition"
+                    id="create-btn">
+                    + Yangi Qo'shish
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Filters -->
+        <div id="filter-container" class="bg-gray-50 px-6 py-3 border-b border-gray-200 hidden flex space-x-4">
+            <!-- Injected by JS -->
+        </div>
+
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full leading-normal">
+                        <thead>
+                            <tr id="table-head">
+                                <!-- JS Populated -->
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- JS Populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div id="pagination-controls"
+                class="hidden flex flex-col md:flex-row items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow">
+                <!-- Mobile View -->
+                <div class="flex flex-1 justify-between sm:hidden w-full mb-2">
+                    <button id="mobile-prev"
+                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Oldingi</button>
+                    <button id="mobile-next"
+                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Keyingi</button>
+                </div>
+
+                <!-- Desktop View -->
+                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between w-full">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Ko'rsatilmoqda <span class="font-medium" id="page-start">1</span> dan <span
+                                class="font-medium" id="page-end">10</span> gacha, jami <span class="font-medium"
+                                id="total-count">20</span> ta
+                            natijadan
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <select id="page-size-select"
+                            class="block rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                            <option value="20" selected>20 / sahifa</option>
+                            <option value="50">50 / sahifa</option>
+                            <option value="100">100 / sahifa</option>
+                            <option value="200">200 / sahifa</option>
+                        </select>
+                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                            <button id="prev-page"
+                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                <span class="sr-only">Previous</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                        d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                            <span id="current-page-display"
+                                class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">1</span>
+                            <button id="next-page"
+                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                <span class="sr-only">Next</span>
+                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd"
+                                        d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="text-center py-4">Yuklanmoqda...</div>
+        </main>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="importModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Exceldan Import Qilish</h3>
+        <input type="file" id="importFile" class="mb-4">
+        <button onclick="submitImport()" class="px-4 py-2 bg-green-600 text-white rounded w-full">Yuklash</button>
+        <button onclick="document.getElementById('importModal').classList.add('hidden')"
+            class="mt-2 px-4 py-2 bg-gray-300 rounded w-full">Yopish</button>
+    </div>
+</div>
+
+<!-- Generic CRUD Modal -->
+<div id="crudModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">Item</h3>
+            <div class="mt-2 px-7 py-3" id="modalFormContainer">
+                <!-- Form Fields injected here -->
+            </div>
+            <div class="items-center px-4 py-3">
+                <button id="saveBtn"
+                    class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                    Saqlash
+                </button>
+                <button onclick="closeCrudModal()"
+                    class="mt-3 px-4 py-2 bg-gray-300 text-black text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 focus:outline-none">
+                    Bekor qilish
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Assign Group Modal -->
+<div id="assignGroupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Guruhga Biriktirish</h3>
+        <p class="text-sm text-gray-500 mb-4" id="assign-test-title">Test: ...</p>
+
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Guruhlarni tanlang</label>
+            <div id="assign-group-container"
+                class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight h-48 overflow-y-auto">
+                <!-- Checkboxes injected here -->
+                <p class="text-sm text-gray-500">Yuklanmoqda...</p>
+            </div>
+            <div class="mt-1 text-xs text-gray-500 flex justify-between">
+                <button type="button" onclick="toggleAllGroups(true)"
+                    class="text-indigo-600 hover:text-indigo-800">Barchasini belgilash</button>
+                <button type="button" onclick="toggleAllGroups(false)"
+                    class="text-gray-600 hover:text-gray-800">Tozalash</button>
+            </div>
+        </div>
+
+        <button onclick="submitGroupAssignment()"
+            class="px-4 py-2 bg-indigo-600 text-white rounded w-full hover:bg-indigo-700 transition">Biriktirish</button>
+        <button onclick="document.getElementById('assignGroupModal').classList.add('hidden')"
+            class="mt-2 px-4 py-2 bg-gray-300 rounded w-full hover:bg-gray-400 transition">Yopish</button>
+    </div>
+</div>
+
+<script>
+    const PAGE = '{{ page }}';
+    let currentId = null; // For Edit mode
+
+    let config = {};
+    let currentUser = null; // Global user object for permission checks
+
+    // Page Configurations
+    const CONFIGS = {
+        'employees': {
+            title: 'Xodimlar',
+            api: '/api/employees/',
+            columns: ['F.I.SH', 'Login', 'Rol', 'Telefon', 'Amallar'],
+            fields: [
+                { name: 'first_name', label: 'Ism', type: 'text' },
+                { name: 'last_name', label: 'Familiya', type: 'text' },
+                { name: 'username', label: 'Login', type: 'text' },
+                { name: 'password', label: 'Parol', type: 'password' },
+                {
+                    name: 'role', label: 'Rol', type: 'select', options: [
+                        { val: 'teacher', text: 'O\'qituvchi' },
+                        { val: 'dean', text: 'Dekan' },
+                        { val: 'admin', text: 'Admin' }
+                    ]
+                },
+                { name: 'phone', label: 'Telefon', type: 'text' }
+            ],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.first_name} ${item.last_name}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.username}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm uppercase">${item.role}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.phone || '-'}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
+                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                </td>
+            `
+        },
+        'students': {
+            title: 'Talabalar',
+            api: '/api/students/',
+            importApi: '/api/students/import/', // Import Endpoint
+            columns: ['ID', 'F.I.SH', 'Guruh', 'Telefon', 'Holat', 'Amallar'],
+            fields: [
+                { name: 'full_name', label: 'F.I.SH', type: 'text' },
+                { name: 'student_id', label: 'Talaba ID', type: 'text' },
+                { name: 'course', label: 'Kurs', type: 'number' },
+                {
+                    name: 'education_form', label: 'Ta\'lim Shakli', type: 'select', options: [
+                        { val: 'kunduzgi', text: 'Kunduzgi' }, { val: 'sirtqi', text: 'Sirtqi' }, { val: 'kechki', text: 'Kechki' }
+                    ]
+                },
+                { name: 'direction', label: 'Yo\'nalish', type: 'select', options: [] }, // Dynamic
+                { name: 'group', label: 'Guruh', type: 'select', options: [] }, // Dynamic
+                { name: 'phone', label: 'Telefon', type: 'text' },
+                {
+                    name: 'status', label: 'Status', type: 'select', options:
+                        [{ val: 'active', text: 'Active' }, { val: 'academic_leave', text: 'Academic Leave' }, { val: 'expelled', text: 'Expelled' }]
+                },
+                { name: 'username', label: 'Login (ixtiyoriy)', type: 'text' },
+                { name: 'password', label: 'Parol (ixtiyoriy)', type: 'password' },
+                { name: 'is_system_active', label: 'Tizimga kirish', type: 'checkbox' }
+            ],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.student_id}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.full_name}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.group_details ? item.group_details.name : '-'}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.phone}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="toggleStudentStatus(${item.id}, ${item.is_system_active})" 
+                        class="px-2 py-1 rounded text-xs font-semibold ${item.is_system_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${item.is_system_active ? 'Faol' : 'Faol emas'}
+                    </button>
+                </td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
+                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                </td>
+            `
+        },
+        'groups': {
+            title: 'Guruhlar',
+            api: '/api/groups/',
+            columns: ['Nomi', 'Kurs', 'Yo\'nalish', 'Holat', 'Amallar'],
+            fields: [
+                { name: 'name', label: 'Guruh Nomi', type: 'text' },
+                { name: 'course', label: 'Kurs', type: 'number' },
+                { name: 'direction', label: 'Yo\'nalish', type: 'select', options: [] }, // Options populated dynamically
+                { name: 'education_form', label: 'Ta\'lim Shakli', type: 'text', placeholder: 'kunduzgi' },
+                { name: 'is_system_active', label: 'Faol', type: 'checkbox' }
+            ],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.name}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.course}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.direction}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="toggleGroupStatus(${item.id}, ${item.is_system_active})" 
+                        class="px-2 py-1 rounded text-xs font-semibold ${item.is_system_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${item.is_system_active ? 'Faol' : 'Faol emas'}
+                    </button>
+                </td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
+                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                </td>
+            `
+        },
+        'directions': {
+            title: 'Yo\'nalishlar',
+            api: '/api/directions/',
+            columns: ['Nomi', 'Kod', 'Amallar'],
+            fields: [
+                { name: 'name', label: 'Yo\'nalish Nomi', type: 'text' },
+                { name: 'code', label: 'Kod', type: 'text' }
+            ],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.name}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.code}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
+                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                </td>
+            `
+        },
+        'subjects': {
+            title: 'Fanlar',
+            api: '/api/subjects/',
+            columns: ['ID', 'Nomi', 'Kod', 'Amallar'],
+            fields: [
+                { name: 'name', label: 'Fan Nomi', type: 'text' },
+                { name: 'code', label: 'Fan Kodi', type: 'text' },
+                { name: 'courses', label: 'Kurslar (vergul bilan, m-n: 1,2)', type: 'text' },
+                { name: 'directions', label: 'Yo\'nalish', type: 'select', options: [] },
+                { name: 'teacher', label: 'O\'qituvchi', type: 'select', options: [] }
+            ],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-500">#${item.id}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.name}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.code}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
+                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                </td>
+            `
+        },
+        'tests': {
+            title: 'Testlar',
+            api: '/api/tests/',
+            columns: ['Nomi', 'Fan', 'Boshlanish', 'Tugash', 'Amallar'],
+            fields: [
+                { name: 'title', label: 'Test Nomi', type: 'text' },
+                { name: 'subject', label: 'Fan (ID)', type: 'number' },
+                { name: 'passing_score', label: 'O\'tish Bali', type: 'number' },
+                { name: 'start_date', label: 'Boshlanish Vaqti', type: 'datetime-local' },
+                { name: 'end_date', label: 'Tugash Vaqti', type: 'datetime-local' },
+                { name: 'duration', label: 'Vaqt (daqiqa)', type: 'number' }
+            ],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.title}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.subject_details ? item.subject_details.name : item.subject}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${new Date(item.start_date).toLocaleString()}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${new Date(item.end_date).toLocaleString()}</td>
+                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm flex items-center">
+                    <a href="/tests/edit/${item.id}/" class="text-indigo-600 hover:text-indigo-900 mr-2" title="Guruhga biriktirish">
+                        🔗
+                    </a>
+                    <button onclick="importTestQuestions(${item.id})" class="text-green-600 hover:text-green-900 mr-2" title="Savollarni import qilish">📥</button>
+                    <a href="/tests/edit/${item.id}/" class="text-blue-600 hover:text-blue-900 mr-2" title="Tahrirlash">✏️</a>
+                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900" title="O'chirish">🗑️</button>
+                </td>
+            `
+        },
+        'results': {
+            title: 'Natijalar',
+            api: '/api/results/',
+            readOnly: true,
+            columns: ['Talaba', 'Guruh', 'Test', 'Ball', 'Foiz', 'Holat', 'Amallar'],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <div>
+                        <p class="text-gray-900 whitespace-no-wrap font-bold">${item.student_details ? item.student_details.full_name : '-'}</p>
+                    </div>
+                </td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.student_details && item.student_details.group_details ? item.student_details.group_details.name : '-'}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.test_details ? item.test_details.title : '-'}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.score} / ${item.max_score}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.percentage}%</td>
+                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    <span class="px-2 py-1 rounded ${item.status === 'passed' ? 'bg-green-200 text-green-900' : 'bg-red-200 text-red-900'}">${item.status}</span>
+                 </td>
+                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    ${(currentUser && (currentUser.role === 'admin' || currentUser.role === 'dean')) ?
+                    `<button onclick="allowRetake(${item.id})" class="text-indigo-600 hover:text-indigo-900 font-bold flex items-center mr-2 mb-1" title="Qayta topshirishga ruxsat berish">
+                        🔄 Qayta topshirish
+                    </button>` : ''}
+                    
+                    ${(currentUser && currentUser.role === 'admin') ?
+                    `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900 flex items-center" title="O'chirish">
+                        🗑️ O'chirish
+                    </button>` : ''}
+                    
+                    ${(!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'dean')) ? '<span class="text-gray-400">-</span>' : ''}
+                 </td>
+            `
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const token = localStorage.getItem('access_token');
+        if (!token) { window.location.href = '/login/'; return; }
+
+        config = CONFIGS[PAGE];
+        if (!config) { alert('Page configuration not found'); return; }
+
+        document.getElementById('page-title').textContent = config.title;
+        if (config.readOnly) document.getElementById('create-btn').classList.add('hidden');
+
+        // Import Logic
+        if (config.importApi) {
+            const header = document.querySelector('header .flex');
+            const importBtn = document.createElement('button');
+            importBtn.className = 'bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition ml-2';
+            importBtn.innerHTML = '📥 Import (Excel)';
+            importBtn.onclick = openImportModal;
+            header.appendChild(importBtn);
+        }
+
+        // Setup Search
+        let searchTimeout;
+        window.handleSearch = (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => loadData(token), 500); // Removed inline params, now using dom
+        };
+
+        // Setup Filters
+        const filterContainer = document.getElementById('filter-container');
+        if (PAGE === 'groups' || PAGE === 'students') {
+            filterContainer.classList.remove('hidden');
+
+            // Course Filter
+            const courseSelect = document.createElement('select');
+            courseSelect.id = 'filter-course';
+            courseSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            courseSelect.innerHTML = '<option value="">Kurs bo\'yicha</option>' +
+                [1, 2, 3, 4].map(c => `<option value="${c}">${c}-kurs</option>`).join('');
+            if (PAGE !== 'students') {
+                courseSelect.onchange = () => loadData(token);
+            }
+            filterContainer.appendChild(courseSelect);
+
+            // Direction Filter
+            const dirSelect = document.createElement('select');
+            dirSelect.id = 'filter-direction';
+            dirSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            dirSelect.innerHTML = '<option value="">Yo\'nalish bo\'yicha</option>';
+
+            // Fetch directions
+            axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => {
+                    res.data.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.name;
+                        opt.textContent = d.name;
+                        dirSelect.appendChild(opt);
+                    });
+                });
+            dirSelect.onchange = () => {
+                if (PAGE !== 'students') loadData(token);
+            };
+            filterContainer.appendChild(dirSelect);
+        }
+
+        if (PAGE === 'students') {
+            // Education Form Filter
+            const eduSelect = document.createElement('select');
+            eduSelect.id = 'filter-edu-form';
+            eduSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            eduSelect.innerHTML = '<option value="">Ta\'lim shakli</option>' +
+                '<option value="kunduzgi">Kunduzgi</option>' +
+                '<option value="sirtqi">Sirtqi</option>' +
+                '<option value="kechki">Kechki</option>';
+            eduSelect.onchange = () => loadData(token);
+            filterContainer.appendChild(eduSelect);
+
+            // Group Filter (Dependent)
+            const groupSelect = document.createElement('select');
+            groupSelect.id = 'filter-group';
+            groupSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            groupSelect.innerHTML = '<option value="">Guruh bo\'yicha</option>';
+            filterContainer.appendChild(groupSelect);
+
+            // Fetch groups for filter and setup dependency
+            let allFilterGroups = [];
+
+            const updateGroupOptions = () => {
+                const courseVal = document.getElementById('filter-course').value;
+                const dirVal = document.getElementById('filter-direction').value;
+
+                let filtered = allFilterGroups;
+
+                if (courseVal) {
+                    filtered = filtered.filter(g => g.course == courseVal);
+                }
+
+                if (dirVal) {
+                    // Robust check: remove extra spaces, lowercase match if needed, handle potential ID vs Name mismatch
+                    const target = dirVal.trim().toLowerCase();
+                    filtered = filtered.filter(g => {
+                        const gDir = (g.direction || '').toString().trim().toLowerCase();
+                        const gDirName = (g.direction_name || '').toString().trim().toLowerCase();
+                        return gDir === target || gDirName === target;
+                    });
+                }
+
+                groupSelect.innerHTML = '<option value="">Guruh bo\'yicha</option>' +
+                    filtered.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            };
+
+            axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => {
+                    // Handle paginated response
+                    allFilterGroups = res.data.results || res.data;
+                    updateGroupOptions(); // Initial populate
+                });
+
+            // Attach listeners to course and direction for dependency
+            document.getElementById('filter-course').addEventListener('change', () => {
+                updateGroupOptions();
+                loadData(token);
+            });
+            document.getElementById('filter-direction').addEventListener('change', () => {
+                updateGroupOptions();
+                loadData(token);
+            });
+
+            groupSelect.onchange = () => loadData(token);
+        }
+
+
+
+        // Setup Save
+        document.getElementById('saveBtn').onclick = () => saveItem(token);
+
+        // Initial Load
+        try {
+            // Fetch User Profile for Sidebar logic
+            const userRes = await axios.get('/api/accounts/profile/', { headers: { Authorization: `Bearer ${token}` } });
+
+            const user = userRes.data;
+            currentUser = user; // Set global user
+
+            // --- RESULTS FILTERS ---
+            if (PAGE === 'results') {
+                filterContainer.classList.remove('hidden');
+
+                // 1. Test Filter
+                const testSelect = document.createElement('select');
+                testSelect.id = 'filter-test';
+                testSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-48';
+                testSelect.innerHTML = '<option value="">Test bo\'yicha</option>';
+                filterContainer.appendChild(testSelect);
+
+                axios.get('/api/tests/', { headers: { Authorization: `Bearer ${token}` } })
+                    .then(res => {
+                        const tests = res.data.results || res.data;
+                        tests.forEach(t => {
+                            const opt = document.createElement('option');
+                            opt.value = t.id;
+                            opt.textContent = t.title;
+                            testSelect.appendChild(opt);
+                        });
+                    });
+                testSelect.onchange = () => loadData(token);
+
+                // 2. Group Filter (Results View)
+                if (currentUser && currentUser.role !== 'student') {
+                    const groupSelect = document.createElement('select');
+                    groupSelect.id = 'filter-group-results';
+                    groupSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-32';
+                    groupSelect.innerHTML = '<option value="">Guruh bo\'yicha</option>';
+                    filterContainer.appendChild(groupSelect);
+
+                    axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                        .then(res => {
+                            const groups = res.data.results || res.data;
+                            groups.forEach(g => {
+                                const opt = document.createElement('option');
+                                opt.value = g.id;
+                                opt.textContent = g.name;
+                                groupSelect.appendChild(opt);
+                            });
+                        });
+                    groupSelect.onchange = () => loadData(token);
+                }
+
+                // 3. Status Filter
+                const statusSelect = document.createElement('select');
+                statusSelect.id = 'filter-status';
+                statusSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+                statusSelect.innerHTML = `
+                    <option value="">Holat bo'yicha</option>
+                    <option value="passed">O'tgan (Passed)</option>
+                    <option value="failed">O'tmagan (Failed)</option>
+                `;
+                statusSelect.onchange = () => loadData(token);
+                filterContainer.appendChild(statusSelect);
+
+                // 4. Export Button
+                const exportBtn = document.createElement('button');
+                exportBtn.textContent = 'Excelga Yuklash';
+                exportBtn.className = 'bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700';
+                exportBtn.onclick = async () => {
+                    const test = document.getElementById('filter-test').value;
+                    const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
+                    const statusVal = document.getElementById('filter-status').value;
+                    const search = document.getElementById('searchInput').value;
+
+                    const url = `/api/results/export_excel/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}`;
+
+                    try {
+                        exportBtn.textContent = 'Yuklanmoqda...';
+                        exportBtn.disabled = true;
+
+                        const response = await axios.get(url, {
+                            headers: { Authorization: `Bearer ${token}` },
+                            responseType: 'blob'
+                        });
+
+                        // Create download link
+                        const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.setAttribute('download', 'natijalar.xlsx');
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                    } catch (e) {
+                        console.error(e);
+                        alert('Yuklashda xatolik: ' + (e.response?.status === 401 ? 'Avtorizatsiya xatosi' : 'Noma\'lum xatolik'));
+                    } finally {
+                        exportBtn.textContent = 'Excelga Yuklash';
+                        exportBtn.disabled = false;
+                    }
+                };
+                filterContainer.appendChild(exportBtn);
+            }
+
+            if (['admin', 'dean'].includes(user.role)) {
+                document.getElementById('menu-students').classList.remove('hidden');
+                document.getElementById('menu-groups').classList.remove('hidden');
+                document.getElementById('menu-results').classList.remove('hidden');
+            }
+            if (['admin', 'teacher'].includes(user.role)) {
+                document.getElementById('menu-subjects').classList.remove('hidden');
+                document.getElementById('menu-tests').classList.remove('hidden');
+            }
+            // Failsafe: Explicitly hide results for teacher if it somehow leaked
+            if (user.role === 'teacher') {
+                const resLink = document.getElementById('menu-results');
+                if (resLink) resLink.classList.add('hidden');
+            }
+            if (user.role === 'admin') {
+                document.getElementById('menu-employees').classList.remove('hidden');
+                document.getElementById('menu-directions').classList.remove('hidden');
+                document.getElementById('menu-monitoring').classList.remove('hidden');
+            }
+            if (user.role === 'student') {
+                document.getElementById('menu-results').classList.remove('hidden');
+            }
+
+            // Update Sidebar Profile Info
+            document.getElementById('user-name').textContent = user.last_name + ' ' + user.first_name.charAt(0) + '.';
+            document.getElementById('user-role').textContent = user.role;
+            document.getElementById('user-avatar').textContent = (user.first_name || user.username).charAt(0).toUpperCase();
+
+        } catch (e) { console.error("User profile fetch failed", e); }
+
+        loadData(token);
+    });
+
+    // Global Pagination State
+    let currentPage = 1;
+    let pageSize = 20;
+    let currentOrder = ''; // Sorting state
+
+    // Toggle Sort Function
+    window.toggleSort = (field) => {
+        if (field !== 'full_name') return; // Only support full_name for now
+
+        if (currentOrder === 'full_name') currentOrder = '-full_name';
+        else if (currentOrder === '-full_name') currentOrder = '';
+        else currentOrder = 'full_name'; // Default start A-Z
+
+        loadData(localStorage.getItem('access_token'), 1); // Reset to page 1
+    };
+
+    async function allowRetake(id) {
+        showModal(
+            'Qayta topshirish',
+            'Haqiqatan ham ushbu talabaga testni qayta topshirishga ruxsat bermoqchimisiz? Eski natija saqlanib qoladi.',
+            async () => {
+                const token = localStorage.getItem('access_token');
+                try {
+                    await axios.post(`${CONFIGS[PAGE].api}${id}/allow_retake/`, {}, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    loadData(token);
+                    showModal('Muvaffaqiyatli', 'Qayta topshirishga ruxsat berildi!');
+                } catch (error) {
+                    console.error(error);
+                    showModal('Xatolik', 'Xatolik yuz berdi');
+                }
+            }
+        );
+    }
+
+    async function loadData(token, page = 1) {
+        try {
+            document.getElementById('loading').classList.remove('hidden');
+            const search = document.getElementById('searchInput').value;
+            pageSize = document.getElementById('page-size-select') ? document.getElementById('page-size-select').value : 50;
+
+            const params = { search };
+
+            // Only send pagination params if page supports it (students, results, subjects, directions, employees)
+            if (['students', 'results', 'subjects', 'directions', 'employees'].includes(PAGE)) {
+                params.page = page;
+                params.page_size = pageSize;
+            }
+
+            // Add filters if present
+            const courseFilter = document.getElementById('filter-course');
+            const dirFilter = document.getElementById('filter-direction');
+            const eduFilter = document.getElementById('filter-edu-form');
+            const groupFilter = document.getElementById('filter-group');
+
+            if (courseFilter && courseFilter.value) params.course = courseFilter.value;
+            if (dirFilter && dirFilter.value) params.direction = dirFilter.value;
+            if (eduFilter && eduFilter.value) params.education_form = eduFilter.value;
+            if (groupFilter && groupFilter.value) params.group = groupFilter.value;
+
+            // Result Filters
+            const testFilter = document.getElementById('filter-test');
+            const groupResultsFilter = document.getElementById('filter-group-results');
+            const statusFilter = document.getElementById('filter-status');
+
+            if (testFilter && testFilter.value) params.test = testFilter.value;
+            if (groupResultsFilter && groupResultsFilter.value) params.student__group = groupResultsFilter.value;
+            if (statusFilter && statusFilter.value) params.status = statusFilter.value;
+
+            // Add Ordering
+            if (currentOrder) params.ordering = currentOrder;
+
+            const res = await axios.get(config.api, { headers: { Authorization: `Bearer ${token}` }, params });
+
+            // Handle Pagination vs List
+            let data = res.data;
+            if (data.results && Array.isArray(data.results)) {
+                // Paginated Response
+                renderTable(data.results);
+                setupPagination(data.count, page, pageSize);
+            } else {
+                // Plain List
+                renderTable(data);
+                document.getElementById('pagination-controls').classList.add('hidden');
+            }
+
+            document.getElementById('loading').classList.add('hidden');
+        } catch (e) {
+            console.error(e);
+            document.getElementById('loading').textContent = 'Xatolik yuz berdi';
+        }
+    }
+
+    function setupPagination(totalCount, page, size) {
+        const controls = document.getElementById('pagination-controls');
+        if (!controls) return;
+
+        controls.classList.remove('hidden');
+        currentPage = page;
+
+        const totalPages = Math.ceil(totalCount / size);
+
+        // Update Info Text
+        const start = (page - 1) * size + 1;
+        const end = Math.min(page * size, totalCount);
+        document.getElementById('page-start').textContent = start;
+        document.getElementById('page-end').textContent = end;
+        document.getElementById('total-count').textContent = totalCount;
+        document.getElementById('current-page-display').textContent = page;
+
+        // Update Buttons
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+
+        prevBtn.disabled = page <= 1;
+        nextBtn.disabled = page >= totalPages;
+
+        // Button Handlers
+        prevBtn.onclick = () => {
+            if (page > 1) loadData(localStorage.getItem('access_token'), page - 1);
+        };
+        nextBtn.onclick = () => {
+            if (page < totalPages) loadData(localStorage.getItem('access_token'), page + 1);
+        };
+
+        // Page Size Handler (Global listener setup once, or inline here safely)
+        const sizeSelect = document.getElementById('page-size-select');
+        sizeSelect.onchange = () => {
+            loadData(localStorage.getItem('access_token'), 1); // Reset to page 1 on size change
+        };
+    }
+
+    function renderTable(data) {
+        document.getElementById('table-head').innerHTML = config.columns.map(c => {
+            // Check if column is sortable (Student F.I.SH)
+            if (PAGE === 'students' && c === 'F.I.SH') {
+                let icon = '';
+                if (currentOrder === 'full_name') icon = ' 🔼';
+                if (currentOrder === '-full_name') icon = ' 🔽';
+                return `<th onclick="toggleSort('full_name')" class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-200 select-none">${c}${icon}</th>`;
+            }
+            return `<th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">${c}</th>`;
+        }).join('');
+
+        const tbody = document.getElementById('table-body');
+        if (data.length === 0) tbody.innerHTML = '<tr><td colspan="100" class="p-4 text-center">Ma\'lumotlar yuq.</td></tr>';
+        else tbody.innerHTML = data.map(item => `<tr>${config.render(item)}</tr>`).join('');
+        document.getElementById('loading').classList.add('hidden');
+    }
+
+    // CRUD ACTIONS
+    window.openCreateModal = async () => {
+        currentId = null;
+        document.getElementById('modalTitle').textContent = `Yangi ${config.title} qo'shish`;
+
+        // Dynamic Options Fetching for Groups
+        if (PAGE === 'groups') {
+            const token = localStorage.getItem('access_token');
+            try {
+                const res = await axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } });
+                const directionField = config.fields.find(f => f.name === 'direction');
+                if (directionField) {
+                    directionField.type = 'select'; // Ensure it's select
+                    directionField.options = res.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                }
+            } catch (e) { console.error('Error fetching directions', e); }
+        }
+
+        // Dynamic Options Fetching for Subjects
+        if (PAGE === 'subjects') {
+            const token = localStorage.getItem('access_token');
+            try {
+                const [dirRes, empRes] = await Promise.all([
+                    axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get('/api/employees/', { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+
+                // Directions
+                const directionField = config.fields.find(f => f.name === 'directions');
+                if (directionField) {
+                    directionField.type = 'select';
+                    directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                }
+
+                // Teachers
+                const teacherField = config.fields.find(f => f.name === 'teacher');
+                if (teacherField) {
+                    teacherField.type = 'select';
+                    // Filter mainly teachers if needed, but admins can be assigned too? 
+                    // Let's show all employees but mark role in text.
+                    // Assuming API returns list of users
+                    const employees = empRes.data.results || empRes.data;
+                    teacherField.options = [{ val: '', text: 'O\'qituvchi tanlang...' }].concat(
+                        employees.map(u => ({
+                            val: u.id,
+                            text: `${u.first_name || ''} ${u.last_name || ''} (${u.username}) - ${u.role}`.trim()
+                        }))
+                    );
+                }
+
+            } catch (e) { console.error('Error fetching data for subjects', e); }
+        }
+
+        // Dynamic Options Fetching for Students
+        if (PAGE === 'students') {
+            const token = localStorage.getItem('access_token');
+            try {
+                // Fetch Groups and Directions
+                const [groupRes, dirRes] = await Promise.all([
+                    axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+
+                const allGroups = groupRes.data.results || groupRes.data;
+                const allDirections = dirRes.data;
+                window.allGroupsData = allGroups;
+
+                // Shared Filter Logic
+                const filterGroups = () => {
+                    const courseInput = document.getElementById('field-course');
+                    const dirInput = document.getElementById('field-direction');
+                    const groupSelect = document.getElementById('field-group');
+
+                    if (!courseInput || !dirInput || !groupSelect) return;
+
+                    const selectedCourse = parseInt(courseInput.value);
+                    const selectedDir = dirInput.value;
+
+                    let filteredGroups = allGroups;
+
+                    if (selectedDir) {
+                        filteredGroups = filteredGroups.filter(g => g.direction === selectedDir);
+                    }
+                    if (selectedCourse) {
+                        filteredGroups = filteredGroups.filter(g => g.course === selectedCourse);
+                    }
+
+                    if (filteredGroups.length > 0) {
+                        groupSelect.innerHTML = '<option value="">Guruhni tanlang</option>' +
+                            filteredGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+                    } else {
+                        groupSelect.innerHTML = '<option value="">Mos guruhlar topilmadi</option>';
+                    }
+                };
+
+                // Setup Direction Field
+                const directionField = config.fields.find(f => f.name === 'direction');
+                if (directionField) {
+                    directionField.type = 'select';
+                    directionField.options = allDirections.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                    directionField.onChange = filterGroups;
+                }
+
+                // Setup Course Field
+                const courseField = config.fields.find(f => f.name === 'course');
+                if (courseField) {
+                    courseField.onChange = filterGroups;
+                }
+
+                // Setup Group Field (Empty initially)
+                const groupField = config.fields.find(f => f.name === 'group');
+                if (groupField) {
+                    groupField.type = 'select';
+                    groupField.options = [{ val: '', text: 'Avval yo\'nalish va kursni tanlang' }];
+                }
+
+            } catch (e) { console.error('Error fetching data for student form', e); }
+        }
+
+        renderForm();
+
+        // Post-render listener attachment
+        if (PAGE === 'students') {
+            const dirSelect = document.getElementById('field-direction');
+            const courseInput = document.getElementById('field-course');
+
+            if (dirSelect) dirSelect.addEventListener('change', () => {
+                const dirField = config.fields.find(f => f.name === 'direction');
+                if (dirField && dirField.onChange) dirField.onChange();
+            });
+
+            if (courseInput) courseInput.addEventListener('input', () => {
+                const courseField = config.fields.find(f => f.name === 'course');
+                if (courseField && courseField.onChange) courseField.onChange();
+            });
+        }
+
+        document.getElementById('crudModal').classList.remove('hidden');
+    }
+
+    window.editItem = async (id) => {
+        currentId = id;
+        document.getElementById('modalTitle').textContent = `${config.title} Tahrirlash`;
+        const token = localStorage.getItem('access_token');
+        try {
+            // Fetch item data
+            const res = await axios.get(`${config.api}${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+
+            // Dynamic Options Fetching for Groups (Edit Mode)
+            if (PAGE === 'groups') {
+                try {
+                    const dirRes = await axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } });
+                    const directionField = config.fields.find(f => f.name === 'direction');
+                    if (directionField) {
+                        directionField.type = 'select';
+                        directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                    }
+                } catch (e) { console.error('Error fetching directions', e); }
+            }
+
+            // Dynamic Options Fetching for Subjects (Edit Mode)
+            if (PAGE === 'subjects') {
+                try {
+                    const [dirRes, empRes] = await Promise.all([
+                        axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('/api/employees/', { headers: { Authorization: `Bearer ${token}` } })
+                    ]);
+
+                    const directionField = config.fields.find(f => f.name === 'directions');
+                    if (directionField) {
+                        directionField.type = 'select';
+                        directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                    }
+
+                    const teacherField = config.fields.find(f => f.name === 'teacher');
+                    if (teacherField) {
+                        teacherField.type = 'select';
+                        const employees = empRes.data.results || empRes.data;
+                        teacherField.options = [{ val: '', text: 'O\'qituvchi tanlang...' }].concat(
+                            employees.map(u => ({
+                                val: u.id,
+                                text: `${u.first_name || ''} ${u.last_name || ''} (${u.username}) - ${u.role}`.trim()
+                            }))
+                        );
+                    }
+                } catch (e) { console.error('Error fetching data for subjects', e); }
+            }
+
+            // Dynamic Options Fetching for Students (Edit Mode)
+            if (PAGE === 'students') {
+                try {
+                    // Fetch Groups
+                    const groupRes = await axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } });
+                    const groupsData = groupRes.data.results || groupRes.data;
+                    const groupField = config.fields.find(f => f.name === 'group');
+                    if (groupField) {
+                        groupField.type = 'select';
+                        groupField.options = groupsData.map(g => ({ val: g.id, text: g.name }));
+                    }
+
+                    // Fetch Directions
+                    const dirRes = await axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } });
+                    const directionField = config.fields.find(f => f.name === 'direction');
+                    if (directionField) {
+                        directionField.type = 'select';
+                        directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                    }
+                } catch (e) { console.error('Error fetching data for student form', e); }
+            }
+
+            renderForm(res.data);
+            document.getElementById('crudModal').classList.remove('hidden');
+        } catch (e) { alert('Error loading item'); }
+    }
+
+    window.closeCrudModal = () => {
+        document.getElementById('crudModal').classList.add('hidden');
+    }
+
+
+
+    window.toggleStudentStatus = (id, currentStatus) => {
+        const msg = currentStatus ? "Talabaning tizimga kirishini bloklashni xohlaysizmi?" : "Talabaning tizimga kirishiga ruxsat berasizmi?";
+        showModal('Tasdiqlash', msg, async () => {
+            const token = localStorage.getItem('access_token');
+            try {
+                await axios.patch(`${config.api}${id}/`,
+                    { is_system_active: !currentStatus },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                loadData(token);
+            } catch (e) {
+                console.error(e);
+                showModal('Xatolik', 'Holatni o\'zgartirishda xatolik yuz berdi');
+            }
+        });
+    }
+
+    window.toggleGroupStatus = (id, currentStatus) => {
+        const msg = currentStatus
+            ? "Guruhni nofaol qilmoqchimisiz? Bu guruhdagi barcha talabalar tizimga kira olmaydi!"
+            : "Guruhni faollashtirmoqchimisiz?";
+
+        showModal('Tasdiqlash', msg, async () => {
+            const token = localStorage.getItem('access_token');
+            try {
+                await axios.patch(`${config.api}${id}/`,
+                    { is_system_active: !currentStatus },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                loadData(token);
+            } catch (e) {
+                showModal('Xatolik', 'Holatni o\'zgartirishda xatolik yuz berdi');
+            }
+        });
+    }
+
+    window.deleteItem = (id) => {
+        showModal('Tasdiqlash', "Haqiqatan ham o'chirmoqchimisiz?", async () => {
+            const token = localStorage.getItem('access_token');
+            try {
+                await axios.delete(`${config.api}${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+                loadData(token, currentPage); // Reload current page
+            } catch (error) {
+                showModal('Xatolik', 'O\'chirishda xatolik yuz berdi');
+            }
+        });
+    };
+
+    window.saveItem = async (token) => {
+        if (!validateForm(config.fields)) return;
+
+        try {
+            // Collect Form Data
+            const formData = {};
+            config.fields.forEach(field => {
+                const el = document.getElementById(`field-${field.name}`);
+                if (el) {
+                    if (field.type === 'checkbox') {
+                        formData[field.name] = el.checked;
+                    } else if (field.type === 'select' && el.value === "") {
+                        // Skip empty select if optional or handle validation
+                        // validation handled above
+                        formData[field.name] = null;
+                    } else {
+                        formData[field.name] = el.value;
+                    }
+                }
+            });
+
+            // Special handling for Test dates formatting if needed
+            // Django expects ISO format, datetime-local provides 'YYYY-MM-DDTHH:mm' which works mostly.
+
+            if (currentId) {
+                await axios.patch(`${config.api}${currentId}/`, formData, { headers: { Authorization: `Bearer ${token}` } });
+            } else {
+                await axios.post(config.api, formData, { headers: { Authorization: `Bearer ${token}` } });
+            }
+            document.getElementById('crudModal').classList.add('hidden');
+            loadData(token, currentPage); // Reload
+        } catch (error) {
+            console.error(error);
+            let msg = 'Saqlashda xatolik yuz berdi';
+            if (error.response && error.response.data) {
+                msg = JSON.stringify(error.response.data);
+            }
+            showModal('Xatolik', msg);
+        }
+    };
+
+    // Helper: Form Validation
+    function validateForm(fields) {
+        for (let field of fields) {
+            const el = document.getElementById(`field-${field.name}`);
+            // Basic required check (skip password on edit logic handled elsewhere or make robust)
+            if (el && field.type !== 'checkbox' && !el.value && field.name !== 'password') { // Password usually optional on edit
+                if (currentId && field.name === 'password') continue;
+                if (field.name === 'username' && PAGE === 'students' && !el.value) continue; // Optional for students
+
+                showModal('Xatolik', `${field.label} maydoni to'ldirilishi shart`);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function renderForm(values = {}) {
+        const container = document.getElementById('modalFormContainer');
+        container.innerHTML = config.fields.map(f => {
+            let val = values[f.name] || '';
+            // Datetime fix: remove 'Z' and milliseconds for input type=datetime-local if needed
+            if (f.type === 'datetime-local' && val) val = val.slice(0, 16);
+
+            if (f.type === 'select') {
+                const options = f.options.map(o => `<option value="${o.val}" ${val === o.val ? 'selected' : ''}>${o.text}</option>`).join('');
+                return `
+                 <div class="mb-4 text-left">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">${f.label}</label>
+                    <select id="field-${f.name}" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        ${options}
+                    </select>
+                </div>`;
+            }
+
+            if (f.type === 'checkbox') {
+                return `
+                    <div class="mb-4 text-left flex items-center">
+                        <input type="checkbox" id="field-${f.name}" ${val ? 'checked' : ''} class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                        <label class="ml-2 block text-gray-700 text-sm font-bold">${f.label}</label>
+                    </div>`;
+            }
+
+            return `
+            <div class="mb-4 text-left">
+                <label class="block text-gray-700 text-sm font-bold mb-2">${f.label}</label>
+                <input type="${f.type}" id="field-${f.name}" value="${val}" placeholder="${f.placeholder || ''}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+        `}).join('');
+    }
+
+    let currentImportActionUrl = '';
+    let currentSampleUrl = '';
+
+    window.importTestQuestions = (id) => {
+        currentImportActionUrl = `/api/tests/${id}/import-questions/`;
+        currentSampleUrl = '/api/tests/sample-questions/';
+        openImportModal();
+    }
+
+    window.openImportModal = () => {
+        const modal = document.getElementById('importModal');
+        modal.classList.remove('hidden');
+
+        // Reset if simple call
+        if (!currentImportActionUrl && config.importApi) currentImportActionUrl = config.importApi;
+
+        // Add sample download link if not exists
+        if (!document.getElementById('sample-download-btn')) {
+            const container = modal.querySelector('.relative');
+            const sampleBtn = document.createElement('a');
+            sampleBtn.id = 'sample-download-btn';
+
+            // Determine sample URL based on page or specific action
+            let sampleUrl = currentSampleUrl || '';
+            if (!sampleUrl && PAGE === 'students') sampleUrl = '/api/students/sample/';
+
+            if (sampleUrl) {
+                sampleBtn.href = "#"; // Prevent default nav
+                sampleBtn.onclick = async (e) => {
+                    e.preventDefault();
+                    const token = localStorage.getItem('access_token');
+                    try {
+                        const response = await axios.get(sampleUrl, {
+                            headers: { Authorization: `Bearer ${token}` },
+                            responseType: 'blob'
+                        });
+                        const url = window.URL.createObjectURL(new Blob([response.data]));
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', 'namuna.xlsx'); // File name
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                    } catch (error) {
+                        console.error('Download error:', error);
+                        alert("Namuna yuklashda xatolik (Ruxsat yo'q yoki fayl mavjud emas)");
+                    }
+                };
+
+                sampleBtn.className = "block mt-2 text-center text-blue-600 hover:text-blue-800 text-sm";
+                sampleBtn.innerHTML = '📋 Namuna yuklab olish (.xlsx)';
+                const fileInput = document.getElementById('importFile');
+                fileInput.parentNode.insertBefore(sampleBtn, fileInput);
+            }
+        } else if (currentSampleUrl) {
+            // Update existing button logic if url changed (simple reload needed ideally, but keeping it simple)
+            // For now assuming modal recreation or smart update isn't strictly needed if reload handles it, 
+            // but here we are in same page SPA-ish. 
+            // Let's just remove old btn and re-add if we want to be safe, or just update click handler.
+            const oldBtn = document.getElementById('sample-download-btn');
+            if (oldBtn) oldBtn.remove();
+            // Re-call self to add correct btn
+            // window.openImportModal(); // Caution: infinite loop risk.
+
+            // DRY violation but safe inline here:
+            const container = modal.querySelector('.relative');
+            const sampleBtn = document.createElement('a');
+            sampleBtn.id = 'sample-download-btn';
+
+            sampleBtn.href = "#";
+            sampleBtn.onclick = async (e) => {
+                e.preventDefault();
+                const token = localStorage.getItem('access_token');
+                try {
+                    const response = await axios.get(currentSampleUrl, {
+                        headers: { Authorization: `Bearer ${token}` },
+                        responseType: 'blob'
+                    });
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'namuna.xlsx');
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                } catch (error) {
+                    console.error('Download error:', error);
+                    alert("Namuna yuklashda xatolik");
+                }
+            };
+
+            sampleBtn.className = "block mt-2 text-center text-blue-600 hover:text-blue-800 text-sm";
+            sampleBtn.innerHTML = '📋 Namuna yuklab olish (.xlsx)';
+            const fileInput = document.getElementById('importFile');
+            fileInput.parentNode.insertBefore(sampleBtn, fileInput);
+        }
+    }
+
+    window.submitImport = async () => {
+        const fileInput = document.getElementById('importFile');
+        const file = fileInput.files[0];
+        if (!file) { alert("Fayl tanlang!"); return; }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const apiUrl = currentImportActionUrl || config.importApi;
+        if (!apiUrl) { alert("Import URL topilmadi"); return; }
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const res = await axios.post(apiUrl, formData, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            alert('Import muvaffaqiyatli! Qo\'shilganlar soni: ' + res.data.count);
+            document.getElementById('importModal').classList.add('hidden');
+
+            // Cleanup
+            currentImportActionUrl = '';
+            currentSampleUrl = '';
+            fileInput.value = '';
+
+            loadData(token);
+        } catch (e) {
+            alert('Import xatosi: ' + ((e.response && e.response.data && e.response.data.error) ? e.response.data.error : e.message));
+        }
+    }
+
+    // Test Assignment Logic
+    let currentTestIdForAssign = null;
+
+    window.openAssignGroupModal = async (testId, testTitle) => {
+        currentTestIdForAssign = testId;
+        document.getElementById('assign-test-title').textContent = `Test: ${testTitle}`;
+        const modal = document.getElementById('assignGroupModal');
+        const container = document.getElementById('assign-group-container');
+
+        modal.classList.remove('hidden');
+
+        const token = localStorage.getItem('access_token');
+        try {
+            container.innerHTML = '<p class="text-sm text-gray-500">Yuklanmoqda...</p>';
+            const res = await axios.get('/api/groups/?page_size=1000&is_system_active=true', { headers: { Authorization: `Bearer ${token}` } });
+            const groups = res.data.results || res.data;
+
+            if (!groups || groups.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500">Guruhlar topilmadi</p>';
+                return;
+            }
+
+            container.innerHTML = groups.map(g => `
+                <div class="flex items-center mb-2 px-2 py-1 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200">
+                    <input type="checkbox" id="assign-g-${g.id}" value="${g.id}" class="group-assign-cb w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                    <label for="assign-g-${g.id}" class="ml-2 block text-sm text-gray-900 cursor-pointer w-full select-none">
+                        ${g.name} <span class="text-gray-400 text-xs">(${g.course}-kurs)</span>
+                    </label>
+                </div>
+            `).join('');
+
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = '<p class="text-sm text-red-500">Xatolik yuz berdi</p>';
+        }
+    }
+
+    window.toggleAllGroups = (check) => {
+        const cbs = document.querySelectorAll('.group-assign-cb');
+        cbs.forEach(cb => cb.checked = check);
+    }
+
+    window.submitGroupAssignment = async () => {
+        const cbs = document.querySelectorAll('.group-assign-cb:checked');
+        const groupIds = Array.from(cbs).map(cb => cb.value);
+
+        if (groupIds.length === 0) {
+            showModal('Xatolik', "Iltimos, kamida bitta guruhni tanlang");
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        try {
+            // We send list of IDs
+            const res = await axios.post(`/api/tests/${currentTestIdForAssign}/assign-group/`,
+                { group_ids: groupIds },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            showModal('Muvaffaqiyatli', res.data.message);
+            document.getElementById('assignGroupModal').classList.add('hidden');
+        } catch (e) {
+            console.error(e);
+            showModal('Xatolik', e.response?.data?.error || "Biriktirishda xatolik yuz berdi");
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('access_token');
+        window.location.href = '/login/';
+    }
+</script>
+{% endblock %}

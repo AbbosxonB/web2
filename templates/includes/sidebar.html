@@ -1,0 +1,60 @@
+<div class="w-64 bg-primary-900 text-white flex flex-col">
+    <div class="h-20 flex items-center justify-center border-b border-primary-800 px-4">
+        <div class="flex items-center space-x-2">
+            <img src="/static/img/logo.png" alt="Logo" class="w-8 h-8 object-contain bg-white rounded-full">
+            <h1 class="text-xs font-bold leading-tight">TOSHKENT IJTIMOIY<br>INNOVATSIYA UNIVERSITETI</h1>
+        </div>
+    </div>
+    <nav class="flex-1 px-4 py-6 space-y-2">
+        <!-- 1. Bosh sahifa -->
+        <a href="/dashboard/" id="menu-dashboard"
+            class="block px-4 py-2 rounded-lg {% if page == 'dashboard' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Bosh
+            sahifa</a>
+
+        <!-- 1.1 Monitoring (Admin) -->
+        <a href="/monitoring/" id="menu-monitoring"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'monitoring' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Monitoring</a>
+
+        <!-- 2. Guruhlar -->
+        <a href="/groups/" id="menu-groups"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'groups' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Guruhlar</a>
+
+        <!-- 3. Talabalar -->
+        <a href="/students/" id="menu-students"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'students' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Talabalar</a>
+
+        <!-- 4. Natijalar -->
+        <a href="/results/" id="menu-results"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'results' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Natijalar</a>
+
+        <!-- 5. Yo'nalishlar -->
+        <a href="/directions/" id="menu-directions"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'directions' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Yo'nalishlar</a>
+
+        <!-- 6. Fanlar -->
+        <a href="/subjects/" id="menu-subjects"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'subjects' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Fanlar</a>
+
+        <!-- 7. Testlar -->
+        <a href="/tests/" id="menu-tests"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'tests' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Testlar</a>
+
+        <!-- 8. Xodimlar -->
+        <a href="/employees/" id="menu-employees"
+            class="hidden block px-4 py-2 rounded-lg {% if page == 'employees' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Xodimlar</a>
+    </nav>
+    <div class="p-4 border-t border-primary-800">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full bg-white text-primary-900 flex items-center justify-center font-bold"
+                id="user-avatar">
+                U
+            </div>
+            <div>
+                <p class="text-sm font-semibold" id="user-name">...</p>
+                <p class="text-xs text-gray-400 capitalize" id="user-role">...</p>
+            </div>
+        </div>
+        <button onclick="logout()"
+            class="mt-4 w-full text-sm text-center text-red-300 hover:text-white">Chiqish</button>
+    </div>
+</div>

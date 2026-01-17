@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+
+{% block title %}Bosh sahifa{% endblock %}
+
+{% block content %}
+<div class="flex h-screen bg-gray-100" id="dashboard-app" style="opacity: 0; transition: opacity 0.5s;">
+    <!-- Sidebar -->
+    {% include 'includes/sidebar.html' %}
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white shadow-sm z-10">
+            <div class="px-6 py-4">
+                <h2 class="text-xl font-semibold text-gray-800">Dashboard</h2>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+            <!-- Welcome Card -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <h3 class="text-lg font-semibold mb-2" id="welcome-msg">Xush kelibsiz!</h3>
+                <p class="text-gray-600">Sizning roliz: <span class="font-bold capitalize" id="role-display">...</span>
+                </p>
+            </div>
+
+            <!-- Dashboard Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-grid">
+                <!-- Stats injected via JS -->
+            </div>
+
+            <!-- Charts Section (Admin Only for now or shared) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 hidden" id="stats-charts-section">
+                <!-- Line Chart -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold">Testlar dinamikasi (oylik)</h3>
+                        <span class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">Oxirgi 30 kun</span>
+                    </div>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+
+                <!-- Pie Chart -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold">O'tgan/Yiqilgan nisbati</h3>
+                        <button class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Batafsil
+                            ko'rish</button>
+                    </div>
+                    <div class="w-2/3 mx-auto">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Only Sections -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 hidden" id="admin-dashboard-sections">
+
+                <!-- Recent Activity (Logs) -->
+                <div class="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-bold mb-4">Oxirgi faollik</h3>
+                    <div id="activity-list" class="space-y-4">
+                        <p class="text-gray-500 text-sm">Yuklanmoqda...</p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h3 class="text-lg font-bold mb-4">Tezkor amallar</h3>
+                    <div class="space-y-3">
+                        <a href="/students/"
+                            class="block w-full bg-blue-600 text-white text-center py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                            <span>👤</span> Yangi talaba qo'shish
+                        </a>
+                        <a href="/tests/"
+                            class="block w-full bg-green-600 text-white text-center py-2 rounded hover:bg-green-700 transition flex items-center justify-center gap-2">
+                            <span>➕</span> Yangi test yaratish
+                        </a>
+                        <a href="/students/"
+                            class="block w-full bg-purple-600 text-white text-center py-2 rounded hover:bg-purple-700 transition flex items-center justify-center gap-2">
+                            <span>📥</span> Excel import
+                        </a>
+                        <a href="/results/"
+                            class="block w-full bg-indigo-600 text-white text-center py-2 rounded hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                            <span>📤</span> Natijalarni eksport qilish
+                        </a>
+                        <button
+                            class="block w-full bg-gray-600 text-white text-center py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-2">
+                            <span>⚙️</span> Tizim sozlamalari
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demo Test Link for Students -->
+            <div id="student-actions" class="hidden mt-6">
+                <h3 class="text-lg font-bold mb-4">Mavjud Testlar</h3>
+                <div id="available-tests" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Loading or populated -->
+                    <div class="bg-white p-6 rounded shadow animate-pulse">
+                        <div class="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                        <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<script>
+    // Init Dashboard
+    document.addEventListener('DOMContentLoaded', async () => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            window.location.href = '/login/';
+            return;
+        }
+
+        try {
+            // Fetch User Profile
+            const res = await axios.get('/api/accounts/profile/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const user = res.data;
+
+            // Populate User Info
+            document.getElementById('user-name').textContent = user.username;
+            document.getElementById('user-role').textContent = user.role;
+            document.getElementById('user-avatar').textContent = user.username.charAt(0).toUpperCase();
+            document.getElementById('welcome-msg').textContent = `Xush kelibsiz, ${user.first_name || user.username}!`;
+            document.getElementById('role-display').textContent = user.role;
+
+            // Show Roles Menus
+            // Show Roles Menus
+            if (['admin', 'dean'].includes(user.role)) {
+                document.getElementById('menu-students').classList.remove('hidden');
+                document.getElementById('menu-groups').classList.remove('hidden');
+                document.getElementById('menu-results').classList.remove('hidden');
+            }
+            if (['admin', 'teacher'].includes(user.role)) {
+                document.getElementById('menu-subjects').classList.remove('hidden');
+                document.getElementById('menu-tests').classList.remove('hidden');
+            }
+            if (user.role === 'admin') {
+                document.getElementById('menu-employees').classList.remove('hidden');
+                document.getElementById('menu-directions').classList.remove('hidden');
+                document.getElementById('menu-monitoring').classList.remove('hidden');
+
+                // 1. Render Stats Grid
+                const statsGrid = document.getElementById('stats-grid');
+                statsGrid.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold">Jami talabalar</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-1">${res.data.students_count}</h3>
+                                <p class="text-xs text-green-500 mt-2 font-semibold">⬆ ${res.data.students_growth || '0%'} o'tgan oydan</p>
+                            </div>
+                            <div class="p-2 bg-blue-100 rounded text-blue-600">👥</div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-indigo-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold">Jami testlar</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-1">${res.data.tests_count}</h3>
+                                <p class="text-xs text-green-500 mt-2 font-semibold">⬆ ${res.data.new_tests_count || 0} ta yangi (24 soat)</p>
+                            </div>
+                            <div class="p-2 bg-indigo-100 rounded text-indigo-600">📑</div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-yellow-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold">Bugungi testlar</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-1">${res.data.today_tests_count}</h3>
+                                <p class="text-xs text-blue-500 mt-2 font-semibold">ℹ️ ${res.data.active_tests_count} ta faol</p>
+                            </div>
+                            <div class="p-2 bg-yellow-100 rounded text-yellow-600">📅</div>
+                        </div>
+                    </div>
+                     <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
+                        <div class="flex justify-between items-start">
+                             <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold">O'tkazilgan testlar</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-1">${res.data.completed_tests_count}</h3>
+                                <p class="text-xs text-gray-500 mt-2">O'tish foizi: ${res.data.pass_rate || '0%'}</p>
+                            </div>
+                            <div class="p-2 bg-green-100 rounded text-green-600">✅</div>
+                        </div>
+                    </div>
+                     <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-purple-500 md:col-span-2 lg:col-span-1">
+                        <div class="flex justify-between items-start">
+                             <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold">Rejalashtirilgan</p>
+                                <h3 class="text-3xl font-bold text-gray-800 mt-1">${res.data.scheduled_tests_count}</h3>
+                                <p class="text-xs text-purple-600 mt-2 font-semibold">🕒 Keyingisi: ${res.data.next_test_in_days !== '-' ? res.data.next_test_in_days + ' kun' : '-'} </p>
+                            </div>
+                            <div class="p-2 bg-purple-100 rounded text-purple-600">🗓️</div>
+                        </div>
+                    </div>
+                `;
+
+                // 2. Show Charts
+                document.getElementById('stats-charts-section').classList.remove('hidden');
+
+                // Line Chart
+                new Chart(document.getElementById('monthlyChart'), {
+                    type: 'line',
+                    data: {
+                        labels: res.data.chart_monthly_labels,
+                        datasets: [{
+                            label: 'Testlar soni',
+                            data: res.data.chart_monthly_data,
+                            borderColor: '#3B82F6',
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                        }]
+                    },
+                    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+
+                // Pie Chart
+                new Chart(document.getElementById('pieChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['O\'tdi', 'Yiqildi', 'Topshirmadi'],
+                        datasets: [{
+                            data: res.data.chart_pie_data,
+                            backgroundColor: ['#10B981', '#EF4444', '#F59E0B']
+                        }]
+                    },
+                    options: { cutout: '60%' }
+                });
+
+
+                // Show Admin Sections
+                const adminSection = document.getElementById('admin-dashboard-sections');
+                if (adminSection) adminSection.classList.remove('hidden');
+
+                // Populate Logs (if returned)
+                if (res.data.logs) {
+                    const activityList = document.getElementById('activity-list');
+                    if (res.data.logs.length > 0) {
+                        activityList.innerHTML = res.data.logs.map(log => `
+                            <div class="flex items-start pb-4 border-b last:border-0 last:pb-0">
+                                <div class="bg-blue-100 p-2 rounded-full mr-3 text-blue-600">
+                                    📝
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800">${log.action}</p>
+                                    <p class="text-xs text-gray-500">${log.details || ''}</p>
+                                    <p class="text-xs text-gray-400 mt-1">${new Date(log.timestamp).toLocaleString()}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        activityList.innerHTML = '<p class="text-gray-500 text-sm">Faolliklar mavjud emas</p>';
+                    }
+                }
+            }
+            if (user.role === 'student') {
+                document.getElementById('student-actions').classList.remove('hidden');
+                document.getElementById('menu-results').classList.remove('hidden');
+                loadStudentTests();
+            }
+
+            // Show Dashboard
+            document.getElementById('dashboard-app').style.opacity = '1';
+
+            // Welcome Notification (Once per session)
+            if (!sessionStorage.getItem('welcome_shown')) {
+                const fullName = (user.first_name && user.last_name) ? `${user.first_name} ${user.last_name}` : user.username;
+                showModal('Xush kelibsiz!', `Tizimga xush kelibsiz, ${fullName}!`, null);
+
+                // Auto close after 3 seconds
+                setTimeout(() => {
+                    closeModal();
+                }, 3000);
+
+                sessionStorage.setItem('welcome_shown', 'true');
+            }
+
+        } catch (error) {
+            console.error('Auth Error', error);
+            // If 401, logout
+            if (error.response && error.response.status === 401) {
+                logout();
+            }
+        }
+    });
+
+    async function loadStudentTests() {
+        try {
+            const token = localStorage.getItem('access_token');
+            const res = await axios.get('/api/tests/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const tests = res.data;
+            const container = document.getElementById('available-tests');
+
+            if (tests.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">Hozircha testlar yo\'q.</p>';
+                return;
+            }
+
+            container.innerHTML = tests.map(test => `
+                <div class="bg-white p-6 rounded shadow hover:shadow-md transition">
+                    <h4 class="font-bold text-lg mb-2">${test.title}</h4>
+                    <p class="text-sm text-gray-500 mb-4">${test.subject_details ? test.subject_details.name : 'Fan'}</p>
+                    <div class="flex justify-between items-center text-sm mb-4">
+                         <span>⏳ ${test.duration} daqiqa</span>
+                         <span>📊 ${test.questions_count} savol</span>
+                    </div>
+                    <button onclick="startTest(${test.id})" class="block w-full text-center bg-primary-900 text-white py-2 rounded hover:bg-primary-800">
+                        Boshlash
+                    </button>
+                </div>
+            `).join('');
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('available-tests').innerHTML = '<p class="text-red-500">Testlarni yuklashda xatolik.</p>';
+        }
+    }
+
+    async function startTest(testId) {
+        const token = localStorage.getItem('access_token');
+        try {
+            await axios.get(`/api/tests/${testId}/start/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            // If success, navigate
+            window.location.href = `/take/${testId}/`;
+        } catch (error) {
+            if (error.response && error.response.status === 400) {
+                showModal('Diqqat!', error.response.data.error || "Siz ushbu testni bajargansiz.");
+            } else {
+                showModal('Xatolik', "Tizimda xatolik yuz berdi. Qayta urinib ko'ring.");
+            }
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login/';
+    }
+</script>
+{% endblock %}

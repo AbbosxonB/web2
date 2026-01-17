@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-100">
+    <div class="px-8 py-6 mt-4 text-left bg-white shadow-lg rounded-xl w-full max-w-md">
+        <div class="flex justify-center mb-6">
+            <!-- Logo -->
+            <img src="/static/img/logo.png" alt="TIIU Logo" class="w-24 h-24 object-contain">
+        </div>
+        <h3 class="text-xl font-bold text-center text-primary-900 uppercase">TOSHKENT IJTIMOIY<br>INNOVATSIYA
+            UNIVERSITETI</h3>
+        <p class="text-center text-gray-500 mb-6 mt-1">Tizimga kirish</p>
+
+        <form id="loginForm">
+            <div class="mt-4">
+                <label class="block" for="username">Login (ID)</label>
+                <input type="text" placeholder="Talaba ID yoki Login"
+                    class="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-primary-900 text-sm"
+                    id="username" name="username" required>
+            </div>
+            <div class="mt-4">
+                <label class="block" for="password">Parol</label>
+                <input type="password" placeholder="Parol"
+                    class="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-primary-900 text-sm"
+                    id="password" name="password" required>
+            </div>
+            <div class="flex items-baseline justify-between">
+                <button type="submit"
+                    class="px-6 py-2 mt-4 text-white bg-primary-900 rounded-lg hover:bg-primary-800 w-full transition duration-300">Kirish</button>
+            </div>
+            <div id="error-message" class="text-red-500 text-sm mt-3 hidden text-center"></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const errorMessage = document.getElementById('error-message');
+        errorMessage.classList.add('hidden');
+
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await axios.post('/api/token/', data);
+            const { access, refresh } = response.data;
+
+            localStorage.setItem('access_token', access);
+            localStorage.setItem('refresh_token', refresh);
+
+            // Reset welcome flag so dashboard shows it
+            sessionStorage.removeItem('welcome_shown');
+
+            // Redirect to dashboard (need to implement dashboard view)
+            // Check for 'next' parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const nextUrl = urlParams.get('next');
+
+            if (nextUrl) {
+                window.location.href = nextUrl;
+            } else {
+                window.location.href = '/dashboard/';
+            }
+
+        } catch (error) {
+            console.error(error);
+            if (error.response && error.response.data && error.response.data.detail) {
+                errorMessage.textContent = error.response.data.detail;
+            } else {
+                errorMessage.textContent = 'Login yoki parol noto\'g\'ri!';
+            }
+            errorMessage.classList.remove('hidden');
+        }
+    });
+</script>
+{% endblock %}

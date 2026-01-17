@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TIIU Test Tizimi{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans antialiased">
+    <div id="app" class="min-h-screen flex flex-col">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Global Notification/Confirm Modal -->
+    <div id="globalModal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-60 hidden z-50 flex items-center justify-center backdrop-blur-sm transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all scale-95"
+            style="font-family: 'Inter', sans-serif;">
+            <div class="text-center">
+                <h3 class="text-2xl font-bold text-gray-900 mb-2" id="global-modal-title">Bildirishnoma</h3>
+                <p class="text-gray-600 mb-8 text-base leading-relaxed" id="global-modal-message">
+                    ...
+                </p>
+
+                <div class="space-y-3" id="global-modal-buttons">
+                    <button id="global-modal-ok"
+                        class="w-full bg-black text-white font-bold py-3 px-6 rounded-full hover:bg-gray-800 transition transform hover:scale-105 active:scale-95">
+                        Tushundim
+                    </button>
+                    <button id="global-modal-cancel"
+                        class="hidden w-full bg-white text-black font-bold py-3 px-6 rounded-full border border-gray-300 hover:bg-gray-50 transition">
+                        Bekor qilish
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script>
+        // Global Modal Logic
+        window.globalModalCallback = null;
+        let modalCloseTimeout = null;
+
+        window.showModal = (title, message, onConfirm = null, onCancel = null) => {
+            const modal = document.getElementById('globalModal');
+            const titleEl = document.getElementById('global-modal-title');
+            const msgEl = document.getElementById('global-modal-message');
+            const okBtn = document.getElementById('global-modal-ok');
+            const cancelBtn = document.getElementById('global-modal-cancel');
+
+            // Clear any pending close actions to prevent closing the new modal
+            if (modalCloseTimeout) {
+                clearTimeout(modalCloseTimeout);
+                modalCloseTimeout = null;
+            }
+
+            titleEl.textContent = title || 'Bildirishnoma';
+            msgEl.textContent = message || '';
+
+            // Reset buttons
+            okBtn.textContent = onConfirm ? 'Ha' : 'Tushundim';
+            okBtn.onclick = () => {
+                closeGlobalModal();
+                if (onConfirm) onConfirm();
+            };
+
+            if (onConfirm) {
+                cancelBtn.classList.remove('hidden');
+                cancelBtn.onclick = () => {
+                    closeGlobalModal();
+                    if (onCancel) onCancel();
+                };
+            } else {
+                cancelBtn.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden', 'pointer-events-none');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+                modal.querySelector('div').classList.add('scale-100');
+            }, 10);
+        };
+
+        window.closeGlobalModal = () => {
+            const modal = document.getElementById('globalModal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.remove('scale-100');
+            modal.querySelector('div').classList.add('scale-95');
+
+            modalCloseTimeout = setTimeout(() => {
+                modal.classList.add('hidden', 'pointer-events-none');
+            }, 300); // Match duration-300
+        };
+
+        // Expose close globally just in case
+        window.closeModal = window.closeGlobalModal;
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

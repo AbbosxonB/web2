@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Custom Utilities */
+.bg-primary-900 {
+    background-color: #1e3a8a;
+}
+.bg-primary-800 {
+    background-color: #1e40af;
+}
+.text-primary-900 {
+    color: #1e3a8a;
+}
