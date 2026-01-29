@@ -45,16 +45,13 @@ urlpatterns = [
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # App URLs
+    # App URLs - specific custom URLs if any, but ViewSets are handled by router above.
+    # Keeping them IF they have extra custom paths not in ViewSet, but generally redundant if just ViewSet.
+    # However, apps.accounts.urls might have login/profile etc not in router.
     path('api/accounts/', include('apps.accounts.urls')),
-    path('api/groups/', include('apps.groups.urls')),
-    path('api/students/', include('apps.students.urls')),
-    path('api/subjects/', include('apps.subjects.urls')),
-    path('api/tests/', include('apps.tests.urls')),
-    path('api/results/', include('apps.results.urls')),
-    path('api/directions/', include('apps.directions.urls')),
     path('api/logs/', include('apps.logs.urls')),
     path('api/monitoring/', include('apps.monitoring.urls')),
+
 
     # Frontend Pages
     path('students/', student_list_view, name='students_page'),

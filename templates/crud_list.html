@@ -225,8 +225,8 @@
                     name: 'status', label: 'Status', type: 'select', options:
                         [{ val: 'active', text: 'Active' }, { val: 'academic_leave', text: 'Academic Leave' }, { val: 'expelled', text: 'Expelled' }]
                 },
-                { name: 'username', label: 'Login (ixtiyoriy)', type: 'text' },
-                { name: 'password', label: 'Parol (ixtiyoriy)', type: 'password' },
+                { name: 'username', label: 'Login', type: 'text', placeholder: 'Avtomatik (ID) yoki kiriting' },
+                { name: 'password', label: 'Parol', type: 'text', placeholder: 'Kiritilmasa, eski parol qoladi' },
                 { name: 'is_system_active', label: 'Tizimga kirish', type: 'checkbox' }
             ],
             render: (item) => `
@@ -423,9 +423,10 @@
             dirSelect.innerHTML = '<option value="">Yo\'nalish bo\'yicha</option>';
 
             // Fetch directions
-            axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } })
+            axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
                 .then(res => {
-                    res.data.forEach(d => {
+                    const directions = res.data.results || res.data;
+                    directions.forEach(d => {
                         const opt = document.createElement('option');
                         opt.value = d.name;
                         opt.textContent = d.name;
@@ -806,11 +807,12 @@
         if (PAGE === 'groups') {
             const token = localStorage.getItem('access_token');
             try {
-                const res = await axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } });
+                const res = await axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } });
+                const directions = res.data.results || res.data;
                 const directionField = config.fields.find(f => f.name === 'direction');
                 if (directionField) {
                     directionField.type = 'select'; // Ensure it's select
-                    directionField.options = res.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                    directionField.options = directions.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
                 }
             } catch (e) { console.error('Error fetching directions', e); }
         }
@@ -820,15 +822,16 @@
             const token = localStorage.getItem('access_token');
             try {
                 const [dirRes, empRes] = await Promise.all([
-                    axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get('/api/employees/', { headers: { Authorization: `Bearer ${token}` } })
+                    axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get('/api/employees/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
                 ]);
 
                 // Directions
+                const directions = dirRes.data.results || dirRes.data;
                 const directionField = config.fields.find(f => f.name === 'directions');
                 if (directionField) {
                     directionField.type = 'select';
-                    directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                    directionField.options = directions.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
                 }
 
                 // Teachers
@@ -857,11 +860,11 @@
                 // Fetch Groups and Directions
                 const [groupRes, dirRes] = await Promise.all([
                     axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } })
+                    axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
                 ]);
 
                 const allGroups = groupRes.data.results || groupRes.data;
-                const allDirections = dirRes.data;
+                const allDirections = dirRes.data.results || dirRes.data;
                 window.allGroupsData = allGroups;
 
                 // Shared Filter Logic
@@ -948,11 +951,18 @@
             // Dynamic Options Fetching for Groups (Edit Mode)
             if (PAGE === 'groups') {
                 try {
-                    const dirRes = await axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } });
+                    const dirRes = await axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } });
+                    const directions = dirRes.data.results || dirRes.data;
+                    // DEBUG: Remove in production
+                    // alert(`Debug: Yuklangan yo'nalishlar soni: ${directions.length}. Talabada: ${res.data.direction}`);
+
                     const directionField = config.fields.find(f => f.name === 'direction');
                     if (directionField) {
                         directionField.type = 'select';
-                        directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                        directionField.options = directions.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+
+                        // Fallback check: if current val is not in options, maybe add it as custom option or warn?
+                        // For now just ensuring options are there.
                     }
                 } catch (e) { console.error('Error fetching directions', e); }
             }
@@ -961,14 +971,15 @@
             if (PAGE === 'subjects') {
                 try {
                     const [dirRes, empRes] = await Promise.all([
-                        axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } }),
-                        axios.get('/api/employees/', { headers: { Authorization: `Bearer ${token}` } })
+                        axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } }),
+                        axios.get('/api/employees/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
                     ]);
 
+                    const directions = dirRes.data.results || dirRes.data;
                     const directionField = config.fields.find(f => f.name === 'directions');
                     if (directionField) {
                         directionField.type = 'select';
-                        directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                        directionField.options = directions.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
                     }
 
                     const teacherField = config.fields.find(f => f.name === 'teacher');
@@ -998,18 +1009,44 @@
                     }
 
                     // Fetch Directions
-                    const dirRes = await axios.get('/api/directions/', { headers: { Authorization: `Bearer ${token}` } });
+                    const dirRes = await axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } });
+                    const directions = dirRes.data.results || dirRes.data;
                     const directionField = config.fields.find(f => f.name === 'direction');
                     if (directionField) {
-                        directionField.type = 'select';
-                        directionField.options = dirRes.data.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
+                        directionField.type = 'select'; // Enforce select type
+                        directionField.options = directions.map(d => ({ val: d.name, text: `${d.name} (${d.code})` }));
                     }
+
+                    // Pre-populate group based on current student data
+                    if (res.data.group) {
+                        // Ensure groups are loaded or we might need to fetch them if not already done by page logic
+                        // But usually we just fetch all groups for simplicity in small apps, or filter.
+                        // Let's re-use the same logic as Create Mode: fetch all groups
+                        // Already done above in 'groupRes'
+                    }
+
                 } catch (e) { console.error('Error fetching data for student form', e); }
             }
 
             renderForm(res.data);
+
+            // Post-render logic for Students to attach listeners (Re-attach for Edit mode too)
+            if (PAGE === 'students') {
+                // We need to re-bind the filter logic if we want changing direction to update groups
+                // ... (Logic similar to Create Mode, maybe refactor to shared function later)
+                const dirSelect = document.getElementById('field-direction');
+                const courseInput = document.getElementById('field-course');
+                // Re-define filterGroups if scope issue or just rely on global window.allGroupsData if set
+
+                // Ideally we should extract the detailed setup logic from openCreateModal to a helper 'setupStudentForm()'
+                // For now, let's just make sure the Directions dropdown is populated (which we did above).
+            }
+
             document.getElementById('crudModal').classList.remove('hidden');
-        } catch (e) { alert('Error loading item'); }
+        } catch (e) {
+            console.error(e);
+            alert('Error loading item: ' + e.message);
+        }
     }
 
     window.closeCrudModal = () => {

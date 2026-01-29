@@ -17,6 +17,7 @@ class CustomUser(AbstractUser):
     blocked_until = models.DateTimeField(null=True, blank=True)
     language = models.CharField(max_length=10, default='uz')
     photo = models.ImageField(upload_to='users/', null=True, blank=True)
+    last_activity = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

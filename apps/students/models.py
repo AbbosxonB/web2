@@ -26,6 +26,7 @@ class Student(models.Model):
     status = models.CharField(max_length=20, choices=STATUSES, default='active')
     is_system_active = models.BooleanField(default=True)
     hemis_synced = models.BooleanField(default=False)
+    plain_password = models.CharField(max_length=128, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
