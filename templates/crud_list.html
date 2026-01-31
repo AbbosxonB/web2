@@ -24,7 +24,8 @@
         </header>
 
         <!-- Dynamic Filters -->
-        <div id="filter-container" class="bg-gray-50 px-6 py-3 border-b border-gray-200 hidden flex space-x-4">
+        <div id="filter-container"
+            class="bg-gray-50 px-6 py-3 border-b border-gray-200 hidden flex flex-wrap gap-2 items-center">
             <!-- Injected by JS -->
         </div>
 
@@ -819,7 +820,36 @@
                     });
                 testSelect.onchange = () => loadData(token);
 
-                // 2. Group Filter (Results View)
+                // 2. Course Filter
+                const courseSelect = document.createElement('select');
+                courseSelect.id = 'filter-results-course';
+                courseSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+                courseSelect.innerHTML = '<option value="">Kurs</option>' + [1, 2, 3, 4].map(c => `<option value="${c}">${c}</option>`).join('');
+                filterContainer.appendChild(courseSelect);
+
+                // 3. Edu Form Filter
+                const eduSelect = document.createElement('select');
+                eduSelect.id = 'filter-results-edu';
+                eduSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-24';
+                eduSelect.innerHTML = `<option value="">Ta'lim</option><option value="kunduzgi">Kunduzgi</option><option value="sirtqi">Sirtqi</option><option value="kechki">Kechki</option>`;
+                filterContainer.appendChild(eduSelect);
+
+                // 4. Direction Filter
+                const dirSelect = document.createElement('select');
+                dirSelect.id = 'filter-results-dir';
+                dirSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-32';
+                dirSelect.innerHTML = '<option value="">Yo\'nalish</option>';
+                filterContainer.appendChild(dirSelect);
+
+                axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                    .then(res => {
+                        (res.data.results || res.data).forEach(d => {
+                            dirSelect.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+                        });
+                    });
+
+                // 5. Group Filter (Dependent)
+                // Defined before status to match requested order: Test -> Course -> Edu -> Dir -> Group -> Status
                 if (currentUser && currentUser.role !== 'student') {
                     const groupSelect = document.createElement('select');
                     groupSelect.id = 'filter-group-results';
@@ -827,60 +857,64 @@
                     groupSelect.innerHTML = '<option value="">Guruh bo\'yicha</option>';
                     filterContainer.appendChild(groupSelect);
 
+                    let allResultGroups = [];
+
+                    const updateResultGroupOptions = () => {
+                        const courseVal = courseSelect.value;
+                        const eduVal = eduSelect.value;
+                        const dirVal = dirSelect.value;
+
+                        let filtered = allResultGroups;
+
+                        if (courseVal) {
+                            filtered = filtered.filter(g => g.course == courseVal);
+                        }
+                        if (eduVal) {
+                            // Edu form in group might be strict match, make it robust
+                            const targetEdu = eduVal.trim().toLowerCase();
+                            filtered = filtered.filter(g => {
+                                const gEdu = (g.education_form || '').toString().trim().toLowerCase();
+                                return gEdu === targetEdu;
+                            });
+                        }
+                        if (dirVal) {
+                            const target = dirVal.trim().toLowerCase();
+                            filtered = filtered.filter(g => {
+                                const gDir = (g.direction || '').toString().trim().toLowerCase();
+                                const gDirName = (g.direction_name || '').toString().trim().toLowerCase();
+                                return gDir === target || gDirName === target;
+                            });
+                        }
+
+                        groupSelect.innerHTML = '<option value="">Guruh bo\'yicha</option>' +
+                            filtered.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+                    };
+
                     axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
                         .then(res => {
-                            const groups = res.data.results || res.data;
-                            groups.forEach(g => {
-                                const opt = document.createElement('option');
-                                opt.value = g.id;
-                                opt.textContent = g.name;
-                                groupSelect.appendChild(opt);
-                            });
+                            allResultGroups = res.data.results || res.data;
+                            updateResultGroupOptions();
                         });
+
+                    // Attach Dependency Listeners
+                    courseSelect.onchange = () => { updateResultGroupOptions(); loadData(token); };
+                    eduSelect.onchange = () => { updateResultGroupOptions(); loadData(token); };
+                    dirSelect.onchange = () => { updateResultGroupOptions(); loadData(token); };
                     groupSelect.onchange = () => loadData(token);
+                } else {
+                    // For student/others if logic needed, or just attach listeners to others if group not present
+                    courseSelect.onchange = () => loadData(token);
+                    eduSelect.onchange = () => loadData(token);
+                    dirSelect.onchange = () => loadData(token);
                 }
 
-                // 3. Status Filter
+                // 6. Status Filter
                 const statusSelect = document.createElement('select');
                 statusSelect.id = 'filter-status';
                 statusSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
                 statusSelect.innerHTML = `<option value="">Holat bo'yicha</option><option value="passed">O'tgan (Passed)</option><option value="failed">O'tmagan (Failed)</option>`;
                 statusSelect.onchange = () => loadData(token);
                 filterContainer.appendChild(statusSelect);
-
-                // --- NEW FILTERS ---
-
-                // Course Filter
-                const courseSelect = document.createElement('select');
-                courseSelect.id = 'filter-results-course';
-                courseSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
-                courseSelect.innerHTML = '<option value="">Kurs</option>' + [1, 2, 3, 4].map(c => `<option value="${c}">${c}</option>`).join('');
-                courseSelect.onchange = () => loadData(token);
-                filterContainer.appendChild(courseSelect);
-
-                // Edu Form Filter
-                const eduSelect = document.createElement('select');
-                eduSelect.id = 'filter-results-edu';
-                eduSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-24';
-                eduSelect.innerHTML = `<option value="">Ta'lim</option><option value="kunduzgi">Kunduzgi</option><option value="sirtqi">Sirtqi</option><option value="kechki">Kechki</option>`;
-                eduSelect.onchange = () => loadData(token);
-                filterContainer.appendChild(eduSelect);
-
-                // Direction Filter
-                const dirSelect = document.createElement('select');
-                dirSelect.id = 'filter-results-dir';
-                dirSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-32';
-                dirSelect.innerHTML = '<option value="">Yo\'nalish</option>';
-                filterContainer.appendChild(dirSelect);
-                // Populate Directions
-                axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
-                    .then(res => {
-                        (res.data.results || res.data).forEach(d => {
-                            dirSelect.innerHTML += `<option value="${d.name}">${d.name}</option>`;
-                        });
-                    });
-                dirSelect.onchange = () => loadData(token);
-
 
                 // Date Filters
                 const startInp = document.createElement('input');
@@ -898,7 +932,7 @@
                 filterContainer.appendChild(endInp);
 
 
-                // 4. Export Button
+                // 7. Export Buttons
                 const exportBtn = document.createElement('button');
                 exportBtn.textContent = 'Excelga Yuklash';
                 exportBtn.className = 'bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700';
@@ -907,8 +941,6 @@
                     const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
                     const statusVal = document.getElementById('filter-status').value;
                     const search = document.getElementById('searchInput').value;
-
-                    // New params
                     const course = document.getElementById('filter-results-course').value;
                     const edu = document.getElementById('filter-results-edu').value;
                     const dir = document.getElementById('filter-results-dir').value;
@@ -943,6 +975,50 @@
                     }
                 };
                 filterContainer.appendChild(exportBtn);
+
+                // 8. Export Vedmost (Docx) Button
+                const exportDocxBtn = document.createElement('button');
+                exportDocxBtn.textContent = 'Vedmost (Docx)';
+                exportDocxBtn.className = 'bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 ml-2';
+                exportDocxBtn.onclick = async () => {
+                    // Reuse filters
+                    const test = document.getElementById('filter-test').value;
+                    const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
+                    const statusVal = document.getElementById('filter-status').value;
+                    const search = document.getElementById('searchInput').value;
+                    const course = document.getElementById('filter-results-course').value;
+                    const edu = document.getElementById('filter-results-edu').value;
+                    const dir = document.getElementById('filter-results-dir').value;
+                    const start = document.getElementById('filter-start-date').value;
+                    const end = document.getElementById('filter-end-date').value;
+
+                    const url = `/api/results/export_docx/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}&course=${course}&education_form=${edu}&direction=${dir}&start_date=${start}&end_date=${end}`;
+
+                    try {
+                        exportDocxBtn.textContent = 'Yuklanmoqda...';
+                        exportDocxBtn.disabled = true;
+
+                        const response = await axios.get(url, {
+                            headers: { Authorization: `Bearer ${token}` },
+                            responseType: 'blob'
+                        });
+
+                        const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.setAttribute('download', 'vedmost.docx'); // Filename usually set by Content-Disposition but just in case
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                    } catch (e) {
+                        console.error(e);
+                        alert('Yuklashda xatolik: ' + (e.response?.data?.error || 'Noma\'lum xatolik'));
+                    } finally {
+                        exportDocxBtn.textContent = 'Vedmost (Docx)';
+                        exportDocxBtn.disabled = false;
+                    }
+                };
+                filterContainer.appendChild(exportDocxBtn);
             }
 
             // Sidebar Logic based on Permissions

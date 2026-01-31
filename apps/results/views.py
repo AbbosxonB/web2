@@ -1,9 +1,14 @@
 from rest_framework import viewsets, permissions, filters, status, decorators, pagination
 from rest_framework.response import Response
+from django.http import HttpResponse
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import TestResult
 from .serializers import TestResultSerializer
+from docxtpl import DocxTemplate
+from django.conf import settings
+from django.utils import timezone
+import os
 
 class CustomPagination(pagination.PageNumberPagination):
     page_size = 20
@@ -159,6 +164,70 @@ class TestResultViewSet(viewsets.ModelViewSet):
         response['Content-Disposition'] = 'attachment; filename=natijalar.xlsx'
         wb.save(response)
         return response
+
+    @action(detail=False, methods=['get'])
+    def export_docx(self, request):
+        user = request.user
+        if user.role not in ['admin', 'dean']:
+            return Response({'error': 'Huquq yo\'q'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Apply filters
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        if not queryset.exists():
+            return Response({'error': 'Hech qanday natija topilmadi'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Prepare context data
+        # We need to handle potential multiple groups or tests. 
+        # Ideally, this export is for a single exam sheet (Vedmost), so usually 1 Group + 1 Test.
+        # We will take the first result's details as "Header" info.
+        first_result = queryset.first()
+        student = first_result.student
+        group = student.group if student else None
+        test = first_result.test
+        
+        group_name = group.name if group else "Noma'lum"
+        course_num = f"{group.course}-kurs" if (group and group.course) else "-"
+        direction_name = group.direction if group else "-"
+        # Try to guess faculty if possible, else static
+        faculty_name = "Iqtisodiyot va pedagogika" 
+        
+        results_list = []
+        for index, result in enumerate(queryset, start=1):
+            results_list.append({
+                'number': str(index),
+                'full_name': result.student.full_name if result.student else "Noma'lum",
+                'score': str(result.score),
+                'signature': ''
+            })
+
+        context = {
+            'university_name': "TOSHKENT IJTIMOIY INNOVATSIYA UNIVERSITETI",
+            'Guruh': group_name,
+            'Fakultet': faculty_name,
+            'Kursi': course_num,
+            'Test_nomi': test.title if test else "Noma'lum",
+            'Sana': timezone.now().strftime("%d.%m.%Y"),
+            'results_table': results_list,
+        }
+
+        template_path = os.path.join(settings.BASE_DIR, 'apps/results/templates/results/docx/vedmost_template.docx')
+        if not os.path.exists(template_path):
+             return Response({'error': 'Template topilmadi'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            doc = DocxTemplate(template_path)
+            doc.render(context)
+            
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            filename = f"Vedmost_{group_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            doc.save(response)
+            return response
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': f'Xatolik: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 from django.shortcuts import render
 def result_list_view(request):
