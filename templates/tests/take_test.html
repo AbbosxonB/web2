@@ -3,7 +3,7 @@
 {% block title %}Test Jarayoni{% endblock %}
 
 {% block content %}
-<div class="h-screen flex flex-col bg-gray-100" id="test-app">
+<div class="h-screen flex flex-col bg-gray-100 select-none" id="test-app" oncontextmenu="return false;">
     <noscript>
         <div class="fixed inset-0 bg-red-900 z-50 flex flex-col items-center justify-center text-white text-center p-8">
             <h1 class="text-3xl font-bold mb-4">DIQQAT!</h1>
@@ -60,6 +60,77 @@
             </div>
         </div>
     </div>
+    <!-- Start Warning Modal -->
+    <div id="start-warning-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-90 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-8 text-center max-h-[90vh] overflow-y-auto">
+            <div class="mb-4 text-red-600">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                    </path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 uppercase tracking-wide">⚠️ Test Qoidalari</h2>
+            <ul class="text-left text-gray-700 space-y-2 mb-6 bg-gray-50 p-6 rounded-lg border border-gray-200 text-sm">
+                <li class="flex items-start"><span class="mr-2 text-lg">🖥</span> Test faqat <strong>to‘liq ekran
+                        (Fullscreen)</strong> rejimida ishlaydi.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">📷</span> Kamera test
+                    davomida doimiy yoqilgan bo‘lishi shart.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">🚫</span> Boshqa ilovaga yoki brauzer oynasiga
+                    o‘tish (Alt+Tab) taqiqlanadi.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">🔄</span> Sahifani yangilash (F5, Ctrl+R) mumkin
+                    emas.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">⬅️</span> Orqaga qaytish (Back) taqiqlanadi.
+                </li>
+                <li class="flex items-start"><span class="mr-2 text-lg">📶</span> Internet uzilib qolsa vaqt
+                    hisoblanishda davom etadi.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">👤</span> Bitta foydalanuvchi faqat bitta
+                    qurilmadan kirishi mumkin.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">⏱</span> Belgilangan vaqt tugaganda test
+                    avtomatik topshiriladi.</li>
+                <li class="flex items-start"><span class="mr-2 text-lg">📸</span> Kamera orqali bir nechta odam
+                    aniqlansa yoki telefon / shpargalka ko‘rinib qolsa test tasdiqlanmasligi mumkin.</li>
+                <li class="flex items-start font-bold text-red-600"><span class="mr-2 text-lg">⚠️</span> Qoidalar
+                    buzilsa test bloklanadi yoki natija bekor qilinadi.</li>
+            </ul>
+
+            <div class="mb-6 flex items-center justify-center space-x-2">
+                <input type="checkbox" id="rules-agree"
+                    class="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-gray-300 cursor-pointer"
+                    onchange="document.getElementById('start-test-btn').disabled = !this.checked; document.getElementById('start-test-btn').classList.toggle('opacity-50', !this.checked); document.getElementById('start-test-btn').classList.toggle('cursor-not-allowed', !this.checked);">
+                <label for="rules-agree" class="text-gray-800 font-medium cursor-pointer select-none">Men barcha
+                    qoidalar bilan tanishdim va roziman</label>
+            </div>
+
+            <button id="start-test-btn" onclick="startActualTest()" disabled
+                class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition transform hover:scale-105 opacity-50 cursor-not-allowed">
+                🔴 Tushundim va Testni Boshlash
+            </button>
+        </div>
+    </div>
+
+    <!-- Violation Overlay (Blur) -->
+    <div id="violation-overlay"
+        class="fixed inset-0 z-[60] backdrop-blur-md bg-white/30 flex items-center justify-center hidden">
+        <div class="bg-white/90 p-8 rounded-xl shadow-2xl max-w-md text-center border-4 border-red-500 animate-pulse">
+            <h2 id="violation-title" class="text-3xl font-black text-red-600 mb-4 uppercase tracking-wider">DIQQAT!</h2>
+            <p id="violation-msg" class="text-lg font-bold text-gray-800 mb-6">
+                Talaba, siz test qoidalarini buzdingiz!
+            </p>
+            <button onclick="resolveViolation()"
+                class="bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 transition">
+                Testni Davom Ettirish
+            </button>
+        </div>
+    </div>
+
+    <!-- Camera Preview Element (Hidden or Floating) -->
+    <!-- Camera Preview Element (Floating) -->
+    <div id="camera-container"
+        class="fixed bottom-4 right-4 w-48 h-36 bg-black border-2 border-white rounded shadow-2xl z-40 overflow-hidden hidden">
+        <!-- Created dynamically or inserted here -->
+    </div>
 </div>
 
 
@@ -68,12 +139,14 @@
 
 {% block scripts %}
 <script>
-    const TEST_ID = {{ test_id }};
+    const TEST_ID = "{{ test_id }}";
     let questions = [];
     let currentQuestionIndex = 0;
     let answers = {};
     let timeLeft = 0;
     let timerInterval;
+    let isTestRunning = false;
+    let cameraRequired = false;
 
     // Helpers
     function shuffleArray(array) {
@@ -92,17 +165,19 @@
         }
 
         try {
-            // Fetch Test Questions (Randomized)
+            // Fetch Test Data first
             const testRes = await axios.get(`/api/tests/${TEST_ID}/start/`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
             });
             const testData = testRes.data;
+
+            // Setup local data
             document.getElementById('test-title').textContent = testData.title;
             timeLeft = testData.duration * 60;
-
             questions = testData.questions || [];
+            cameraRequired = testData.is_camera_required;
 
-            // Pre-shuffle options for each question
+            // Pre-shuffle options
             questions.forEach(q => {
                 const baseOpts = [
                     { key: 'A', text: q.option_a },
@@ -115,18 +190,174 @@
 
             document.getElementById('total-q-count').textContent = questions.length;
 
-            startTimer();
-            renderGrid();
-            renderQuestion(0);
-
-            // Anti-cheat listeners
-            setupAntiCheat();
+            // Show Start Warning Modal
+            document.getElementById('start-warning-modal').classList.remove('hidden');
 
         } catch (error) {
             console.error(error);
             showModal("Xatolik", error.response?.data?.error || error.message, () => {
                 window.location.href = '/dashboard/';
             });
+        }
+    }
+
+    async function startActualTest() {
+        // 1. Request Fullscreen
+        try {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) await docEl.requestFullscreen();
+            else if (docEl.mozRequestFullScreen) await docEl.mozRequestFullScreen();
+            else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+            else if (docEl.msRequestFullscreen) await docEl.msRequestFullscreen();
+        } catch (e) {
+            console.warn("Fullscreen request failed or denied", e);
+            alert("Testni boshlash uchun To'liq Ekran rejimiga o'tish shart! Iltimos, ruxsat bering.");
+            return;
+        }
+
+        // 2. Start Camera (if required)
+        if (cameraRequired) {
+            try {
+                await startCamera();
+            } catch (camError) {
+                showModal("Diqqat!", "Kamera talab qilinadi! Iltimos, kamerani yoqing.", () => {
+                    // Retry or stay
+                });
+                return;
+            }
+        }
+
+        // 3. Close Warning, Start Logic
+        document.getElementById('start-warning-modal').classList.add('hidden');
+
+        isTestRunning = true;
+        startTimer();
+        renderGrid();
+        renderQuestion(0);
+
+        // 4. Start Integrity Monitors
+        setupIntegrityMonitors();
+
+        // 5. Start Snapshots
+        if (cameraRequired) startSnapshotLoop();
+    }
+
+    // --- INTEGRITY MONITORS ---
+    function setupIntegrityMonitors() {
+        // Fullscreen Monitor
+        document.addEventListener('fullscreenchange', checkIntegrity);
+        document.addEventListener('mozfullscreenchange', checkIntegrity);
+        document.addEventListener('webkitfullscreenchange', checkIntegrity);
+        document.addEventListener('msfullscreenchange', checkIntegrity);
+
+        // Visibility/Focus Monitor (Tab switch)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isTestRunning) {
+                triggerViolation('focus');
+            }
+        });
+
+        // Window Blur (Alt-Tab / Click away)
+        window.addEventListener('blur', () => {
+            if (isTestRunning) {
+                triggerViolation('focus');
+            }
+        });
+
+        // Prevent Context Menu
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Prevent Copy/Paste
+        document.addEventListener('copy', e => e.preventDefault());
+        document.addEventListener('cut', e => e.preventDefault());
+        document.addEventListener('paste', e => e.preventDefault());
+
+        // Prevent Shortcuts
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'p')) {
+                e.preventDefault();
+            }
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    function checkIntegrity() {
+        if (!isTestRunning) return;
+
+        // Check Fullscreen
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+
+        if (!isFullscreen) {
+            triggerViolation('fullscreen');
+        } else {
+            // If restored
+            resolveViolationIfPossible();
+        }
+    }
+
+    function triggerViolation(type) {
+        // Show Overlay
+        const overlay = document.getElementById('violation-overlay');
+        const title = document.getElementById('violation-title');
+        const msg = document.getElementById('violation-msg');
+
+        overlay.classList.remove('hidden');
+
+        if (type === 'fullscreen') {
+            title.textContent = "DIQQAT! TO'LIQ EKRAN REJIMI BUZILDI!";
+            msg.textContent = "Testni davom ettirish uchun to'liq ekran rejimiga qaytishingiz shart. Iltimos, 'Testni Davom Ettirish' tugmasini bosing.";
+        } else if (type === 'focus') {
+            title.textContent = "DIQQAT! DIQQATNI YO'QOTDINGIZ!";
+            msg.textContent = "Test paytida boshqa oynaga o'tish taqiqlanadi. Iltimos, testga qayting.";
+        } else if (type === 'camera') {
+            title.textContent = "DIQQAT! KAMERA O'CHIRILDI!";
+            msg.textContent = "Kamera ishlamayapti. Davom ettirish uchun kamerani tekshiring.";
+        }
+    }
+
+    async function resolveViolation() {
+        // Try to fix based on current state
+        try {
+            // Check Fullscreen
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            if (!isFullscreen) {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) await docEl.requestFullscreen();
+                else if (docEl.mozRequestFullScreen) await docEl.mozRequestFullScreen();
+                else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
+                else if (docEl.msRequestFullscreen) await docEl.msRequestFullscreen();
+            }
+
+            // Check Camera (simple check if stream active)
+            if (cameraRequired && (!videoStream || !videoStream.active)) {
+                await startCamera();
+            }
+
+            // If we reached here without error, hide overlay if checkIntegrity confirms
+            // Small delay to allow FS to engage
+            setTimeout(() => {
+                const isFS = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+                if (isFS && (!cameraRequired || (videoStream && videoStream.active))) {
+                    document.getElementById('violation-overlay').classList.add('hidden');
+                }
+            }, 500);
+
+        } catch (e) {
+            console.error("Resolve failed", e);
+            alert("Muammoni hal qilib bo'lmadi. Sozlamalarni tekshiring.");
+        }
+    }
+
+    function resolveViolationIfPossible() {
+        const overlay = document.getElementById('violation-overlay');
+        if (!overlay.classList.contains('hidden')) {
+            // Check conditions
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+            if (isFullscreen) {
+                overlay.classList.add('hidden');
+            }
         }
     }
 
@@ -207,6 +438,8 @@
         const btn = document.getElementById('finish-btn');
         if (btn && btn.disabled) return; // Already finishing
 
+        isTestRunning = false; // Stop monitors
+
         if (auto) {
             submitTest(violation);
         } else {
@@ -216,6 +449,7 @@
                 },
                 () => { // Cancel
                     if (btn) btn.disabled = false;
+                    isTestRunning = true; // Resume monitors
                 }
             );
         }
@@ -228,6 +462,9 @@
             btn.disabled = true;
             btn.textContent = 'Yuklanmoqda...';
         }
+
+        // Remove Fullscreen on end
+        if (document.exitFullscreen) document.exitFullscreen().catch(e => { });
 
         try {
             const res = await axios.post(`/api/tests/${TEST_ID}/submit/`, {
@@ -270,22 +507,77 @@
         }
     }
 
-    function setupAntiCheat() {
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // Submit immediately with violation flag
-                finishTest(true, true);
-            }
-        });
-        document.addEventListener('contextmenu', e => e.preventDefault());
-    }
-
     // Controls
     document.getElementById('prev-btn').onclick = () => renderQuestion(currentQuestionIndex - 1);
     document.getElementById('next-btn').onclick = () => renderQuestion(currentQuestionIndex + 1);
     document.getElementById('finish-btn').onclick = () => finishTest();
 
-    // Start
+    // Camera Logic
+    let videoStream;
+
+    async function startCamera() {
+        const video = document.getElementById('camera-preview');
+        // Ensure video element exists inside camera-box or create if needed
+        if (!document.getElementById('camera-preview')) {
+            // Should be created in HTML now or below
+        }
+
+        // Use user facing camera
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Find existing or created video element
+        let vidEl = document.getElementById('camera-preview');
+        if (!vidEl) {
+            vidEl = document.createElement('video');
+            vidEl.id = 'camera-preview';
+            vidEl.className = "w-full h-full object-cover transform scale-x-[-1]"; // Mirror
+            const container = document.getElementById('camera-container');
+            container.appendChild(vidEl);
+            container.classList.remove('hidden');
+        }
+
+        vidEl.srcObject = videoStream;
+        vidEl.play();
+
+        // Add stream listener for end
+        videoStream.getVideoTracks()[0].onended = () => {
+            triggerViolation('camera');
+        };
+    }
+
+    function startSnapshotLoop() {
+        setInterval(async () => {
+            if (!isTestRunning) return;
+            if (!videoStream || !videoStream.active) return; // Don't snap if camera off
+
+            const video = document.getElementById('camera-preview');
+            const canvas = document.createElement('canvas');
+            canvas.width = 300; // Low res for bandwidth
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to blob
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('image', blob, 'snap.jpg');
+
+                try {
+                    // Send to server
+                    await axios.post(`/api/tests/${TEST_ID}/snapshot/`, formData, {
+                        headers: {
+                            'Content-Type': 'multipart/form-data',
+                            Authorization: `Bearer ${localStorage.getItem('access_token')}`
+                        }
+                    });
+                } catch (e) {
+                    console.error("Snapshot failed", e);
+                }
+            }, 'image/jpeg', 0.5);
+
+        }, 10000); // 10 seconds
+    }
+
+    // Start Init
     initTest();
 </script>
 {% endblock %}

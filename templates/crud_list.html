@@ -28,6 +28,42 @@
             <!-- Injected by JS -->
         </div>
 
+        <!-- Bulk Actions Toolbar -->
+        <div id="bulk-actions"
+            class="bg-blue-50 px-6 py-3 border-b border-blue-200 hidden flex items-center justify-between transition-all duration-300">
+            <div class="flex items-center">
+                <span class="text-blue-800 text-sm font-semibold mr-4">
+                    <span id="selected-count">0</span> ta element tanlangan
+                </span>
+                <button onclick="clearSelection()" class="text-blue-600 hover:text-blue-800 text-sm underline">Bekor
+                    qilish</button>
+            </div>
+            <div class="space-x-2 flex">
+                {% if page == 'results' %}
+                <button onclick="executeBulkAction('retake')"
+                    class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700 transition shadow-sm">
+                    🔄 Qayta topshirishga ruxsat
+                </button>
+                {% endif %}
+
+                {% if page == 'students' or page == 'groups' %}
+                <button onclick="executeBulkAction('activate')"
+                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition shadow-sm">
+                    ✅ Faollashtirish
+                </button>
+                <button onclick="executeBulkAction('deactivate')"
+                    class="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700 transition shadow-sm">
+                    🚫 Nofaol qilish
+                </button>
+                {% endif %}
+
+                <button onclick="executeBulkAction('delete')"
+                    class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition shadow-sm">
+                    🗑️ O'chirish
+                </button>
+            </div>
+        </div>
+
         <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
             <div class="bg-white rounded-lg shadow overflow-hidden">
                 <div class="overflow-x-auto">
@@ -166,6 +202,131 @@
     </div>
 </div>
 
+<!-- Dedicated Employee Modal -->
+<div id="employeeModal"
+    class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
+    <div class="relative bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 my-8 flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+            <h3 class="text-2xl font-bold text-gray-800" id="employeeModalTitle">Yangi Xodim</h3>
+            <button onclick="closeEmployeeModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-8">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Left Column: Personal Info -->
+                <div class="lg:col-span-4 space-y-6">
+                    <h4 class="text-lg font-semibold text-gray-700 border-b pb-2 mb-4">Shaxsiy Ma'lumotlar</h4>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ism <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" id="emp-first_name"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                            placeholder="Ismingiz">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Familiya <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" id="emp-last_name"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                            placeholder="Familiyangiz">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Login (Username) <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" id="emp-username"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                            placeholder="Login">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Parol <span id="emp-password-req"
+                                class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <input type="text" id="emp-password"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                                placeholder="Parol">
+                            <p class="text-xs text-gray-400 mt-1" id="emp-password-hint">Tahrirlashda bo'sh qoldirilsa,
+                                o'zgarmaydi.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                        <input type="text" id="emp-phone"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-sm"
+                            placeholder="+998...">
+                    </div>
+                </div>
+
+                <!-- Right Column: Permissions Matrix -->
+                <div class="lg:col-span-8">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h4 class="text-lg font-semibold text-gray-700">Tizim Imkoniyatlari (Ruxsatlar)</h4>
+                        <div class="space-x-2">
+                            <button type="button" onclick="presetPermissions('dean')"
+                                class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-xs font-medium rounded text-gray-700 transition">Dekan
+                                Andoza</button>
+                            <button type="button" onclick="presetPermissions('teacher')"
+                                class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-xs font-medium rounded text-gray-700 transition">O'qituvchi
+                                Andoza</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th
+                                        class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Modul</th>
+                                    <th class="px-2 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                        title="Ko'rish">👁️ View</th>
+                                    <th class="px-2 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                        title="O'zgartirish">✏️ Edit</th>
+                                    <th class="px-2 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                        title="Yaratish">➕ Create</th>
+                                    <th class="px-2 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                        title="O'chirish">🗑️ Delete</th>
+                                    <th class="px-2 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                        title="Eksport/Import">📥 Exp/Imp</th>
+                                    <th
+                                        class="px-2 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        All</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="emp-permissions-body">
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end space-x-3">
+            <button onclick="closeEmployeeModal()"
+                class="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 transition">
+                Bekor qilish
+            </button>
+            <button onclick="saveEmployee()"
+                class="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition transform active:scale-95">
+                Saqlash
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     const PAGE = '{{ page }}';
     let currentId = null; // For Edit mode
@@ -178,37 +339,65 @@
         'employees': {
             title: 'Xodimlar',
             api: '/api/employees/',
-            columns: ['F.I.SH', 'Login', 'Rol', 'Telefon', 'Amallar'],
+            columns: ['F.I.SH', 'Login', 'Telefon', 'Amallar'],
             fields: [
                 { name: 'first_name', label: 'Ism', type: 'text' },
                 { name: 'last_name', label: 'Familiya', type: 'text' },
                 { name: 'username', label: 'Login', type: 'text' },
                 { name: 'password', label: 'Parol', type: 'password' },
+                { name: 'phone', label: 'Telefon', type: 'text' },
                 {
-                    name: 'role', label: 'Rol', type: 'select', options: [
-                        { val: 'teacher', text: 'O\'qituvchi' },
-                        { val: 'dean', text: 'Dekan' },
-                        { val: 'admin', text: 'Admin' }
+                    name: 'permissions',
+                    label: 'Imkoniyatlar',
+                    type: 'permissions_matrix',
+                    modules: [
+                        { val: 'dashboard', text: 'Bosh sahifa' },
+                        { val: 'monitoring', text: 'Monitoring' },
+                        { val: 'groups', text: 'Guruhlar' },
+                        { val: 'students', text: 'Talabalar' },
+                        { val: 'results', text: 'Natijalar' },
+                        { val: 'directions', text: 'Yo\'nalishlar' },
+                        { val: 'subjects', text: 'Fanlar' },
+                        { val: 'tests', text: 'Testlar' },
+                        { val: 'employees', text: 'Xodimlar' },
+                        // Legacy
+                        { val: 'log_system', text: 'Loglar' }
                     ]
-                },
-                { name: 'phone', label: 'Telefon', type: 'text' }
+                }
             ],
-            render: (item) => `
+            render: (item) => {
+                let canUpdate = false;
+                let canDelete = false;
+
+                if (currentUser) {
+                    if (currentUser.role === 'admin') {
+                        canUpdate = true;
+                        canDelete = true;
+                    } else if (currentUser.permissions) {
+                        const perm = currentUser.permissions.find(p => p.module === 'employees');
+                        if (perm) {
+                            if (perm.can_update) canUpdate = true;
+                            if (perm.can_delete) canDelete = true;
+                        }
+                    }
+                }
+
+                return `
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.first_name} ${item.last_name}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.username}</td>
-                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm uppercase">${item.role}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.phone || '-'}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
-                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                    ${canUpdate ? `<button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>` : ''}
+                    ${canDelete ? `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>` : ''}
                 </td>
-            `
+            `;
+            }
         },
         'students': {
             title: 'Talabalar',
             api: '/api/students/',
             importApi: '/api/students/import/', // Import Endpoint
-            columns: ['ID', 'F.I.SH', 'Guruh', 'Telefon', 'Holat', 'Amallar'],
+            columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'ID', 'F.I.SH', 'Guruh', 'Telefon', 'Holat', 'Amallar'],
             fields: [
                 { name: 'full_name', label: 'F.I.SH', type: 'text' },
                 { name: 'student_id', label: 'Talaba ID', type: 'text' },
@@ -221,6 +410,17 @@
                 { name: 'direction', label: 'Yo\'nalish', type: 'select', options: [] }, // Dynamic
                 { name: 'group', label: 'Guruh', type: 'select', options: [] }, // Dynamic
                 { name: 'phone', label: 'Telefon', type: 'text' },
+                { name: 'email', label: 'Email', type: 'email' },
+                {
+                    name: 'camera_mode',
+                    label: 'Kamera Rejimi',
+                    type: 'select',
+                    options: [
+                        { val: 'default', text: 'Global sozlamaga bo\'ysunish' },
+                        { val: 'required', text: 'Doimiy majburiy' },
+                        { val: 'not_required', text: 'Majburiy emas' }
+                    ]
+                },
                 {
                     name: 'status', label: 'Status', type: 'select', options:
                         [{ val: 'active', text: 'Active' }, { val: 'academic_leave', text: 'Academic Leave' }, { val: 'expelled', text: 'Expelled' }]
@@ -229,27 +429,46 @@
                 { name: 'password', label: 'Parol', type: 'text', placeholder: 'Kiritilmasa, eski parol qoladi' },
                 { name: 'is_system_active', label: 'Tizimga kirish', type: 'checkbox' }
             ],
-            render: (item) => `
+            render: (item) => {
+                let canUpdate = false;
+                let canDelete = false;
+                if (currentUser) {
+                    if (currentUser.role === 'admin') { canUpdate = true; canDelete = true; }
+                    else if (currentUser.permissions) {
+                        const perm = currentUser.permissions.find(p => p.module === 'students');
+                        if (perm) {
+                            if (perm.can_update) canUpdate = true;
+                            if (perm.can_delete) canDelete = true;
+                        }
+                    }
+                }
+
+                return `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                    <input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">
+                </td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.student_id}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.full_name}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.group_details ? item.group_details.name : '-'}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.phone}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                    ${canUpdate ? `
                     <button onclick="toggleStudentStatus(${item.id}, ${item.is_system_active})" 
                         class="px-2 py-1 rounded text-xs font-semibold ${item.is_system_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                         ${item.is_system_active ? 'Faol' : 'Faol emas'}
-                    </button>
+                    </button>` : `<span class="px-2 py-1 rounded text-xs font-semibold ${item.is_system_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${item.is_system_active ? 'Faol' : 'Faol emas'}</span>`}
                 </td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                    <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>
-                    <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>
+                    ${canUpdate ? `<button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 mr-2">Tahrirlash</button>` : ''}
+                    ${canDelete ? `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900">O'chirish</button>` : ''}
                 </td>
-            `
+            `;
+            }
         },
         'groups': {
             title: 'Guruhlar',
             api: '/api/groups/',
-            columns: ['Nomi', 'Kurs', 'Yo\'nalish', 'Holat', 'Amallar'],
+            columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'Nomi', 'Kurs', 'Yo\'nalish', 'Holat', 'Amallar'],
             fields: [
                 { name: 'name', label: 'Guruh Nomi', type: 'text' },
                 { name: 'course', label: 'Kurs', type: 'number' },
@@ -258,6 +477,9 @@
                 { name: 'is_system_active', label: 'Faol', type: 'checkbox' }
             ],
             render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                    <input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">
+                </td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.name}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.course}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.direction}</td>
@@ -342,8 +564,14 @@
             title: 'Natijalar',
             api: '/api/results/',
             readOnly: true,
-            columns: ['Talaba', 'Guruh', 'Test', 'Ball', 'Foiz', 'Holat', 'Amallar'],
+            columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'ID', 'Talaba', 'Guruh', 'Test', 'Ball', 'Foiz', 'Tugagan vaqti', 'Sarflangan vaqt', 'Holat', 'Amallar'],
             render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                    <input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">
+                </td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center font-bold text-gray-500">
+                    #${item.id}
+                </td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                     <div>
                         <p class="text-gray-900 whitespace-no-wrap font-bold">${item.student_details ? item.student_details.full_name : '-'}</p>
@@ -353,6 +581,8 @@
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.test_details ? item.test_details.title : '-'}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.score} / ${item.max_score}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.percentage}%</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">${item.formatted_completed_at || '-'}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">${item.duration || '-'}</td>
                  <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                     <span class="px-2 py-1 rounded ${item.status === 'passed' ? 'bg-green-200 text-green-900' : 'bg-red-200 text-red-900'}">${item.status}</span>
                  </td>
@@ -370,6 +600,23 @@
                     ${(!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'dean')) ? '<span class="text-gray-400">-</span>' : ''}
                  </td>
             `
+        },
+        'log_system': {
+            title: 'Tizim Loglari',
+            api: '/api/logs/',
+            readOnly: true,
+            columns: ['Vaqt', 'Foydalanuvchi', 'IP Manzil', 'Action', 'Batafsil'],
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm whitespace-nowrap">${new Date(item.timestamp).toLocaleString()}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.user_details ? (item.user_details.full_name || item.user_details.username) : (item.user || '-')}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-500">${item.ip_address || '-'}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                   <span class="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">${item.action}</span>
+                </td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                   <div class="text-xs text-gray-500 truncate max-w-xs" title="${item.details}">${item.details}</div>
+                </td>
+    `
         }
     };
 
@@ -381,17 +628,8 @@
         if (!config) { alert('Page configuration not found'); return; }
 
         document.getElementById('page-title').textContent = config.title;
-        if (config.readOnly) document.getElementById('create-btn').classList.add('hidden');
 
-        // Import Logic
-        if (config.importApi) {
-            const header = document.querySelector('header .flex');
-            const importBtn = document.createElement('button');
-            importBtn.className = 'bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition ml-2';
-            importBtn.innerHTML = '📥 Import (Excel)';
-            importBtn.onclick = openImportModal;
-            header.appendChild(importBtn);
-        }
+
 
         // Setup Search
         let searchTimeout;
@@ -518,6 +756,46 @@
             const user = userRes.data;
             currentUser = user; // Set global user
 
+            // --- PERMISSION CHECKS (Must be after user load) ---
+
+            // 1. Create Button Permission
+            const createBtn = document.getElementById('create-btn');
+            let canCreate = false;
+            if (currentUser.role === 'admin') {
+                canCreate = true;
+            } else if (currentUser.permissions) {
+                const perm = currentUser.permissions.find(p => p.module === PAGE);
+                if (perm && perm.can_create) canCreate = true;
+            }
+
+            if (config.readOnly || !canCreate) {
+                createBtn.classList.add('hidden');
+            } else {
+                createBtn.classList.remove('hidden');
+            }
+
+            // 2. Import Button Logic
+            if (config.importApi) {
+                let canImport = false;
+                if (currentUser.role === 'admin') canImport = true;
+                else if (currentUser.permissions) {
+                    const perm = currentUser.permissions.find(p => p.module === PAGE);
+                    if (perm && perm.can_export) canImport = true;
+                }
+
+                if (canImport) {
+                    const header = document.querySelector('header .flex');
+                    if (!document.getElementById('import-btn-dynamic')) {
+                        const importBtn = document.createElement('button');
+                        importBtn.id = 'import-btn-dynamic';
+                        importBtn.className = 'bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition ml-2';
+                        importBtn.innerHTML = '📥 Import (Excel)';
+                        importBtn.onclick = openImportModal;
+                        header.appendChild(importBtn);
+                    }
+                }
+            }
+
             // --- RESULTS FILTERS ---
             if (PAGE === 'results') {
                 filterContainer.classList.remove('hidden');
@@ -566,13 +844,59 @@
                 const statusSelect = document.createElement('select');
                 statusSelect.id = 'filter-status';
                 statusSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
-                statusSelect.innerHTML = `
-                    <option value="">Holat bo'yicha</option>
-                    <option value="passed">O'tgan (Passed)</option>
-                    <option value="failed">O'tmagan (Failed)</option>
-                `;
+                statusSelect.innerHTML = `<option value="">Holat bo'yicha</option><option value="passed">O'tgan (Passed)</option><option value="failed">O'tmagan (Failed)</option>`;
                 statusSelect.onchange = () => loadData(token);
                 filterContainer.appendChild(statusSelect);
+
+                // --- NEW FILTERS ---
+
+                // Course Filter
+                const courseSelect = document.createElement('select');
+                courseSelect.id = 'filter-results-course';
+                courseSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+                courseSelect.innerHTML = '<option value="">Kurs</option>' + [1, 2, 3, 4].map(c => `<option value="${c}">${c}</option>`).join('');
+                courseSelect.onchange = () => loadData(token);
+                filterContainer.appendChild(courseSelect);
+
+                // Edu Form Filter
+                const eduSelect = document.createElement('select');
+                eduSelect.id = 'filter-results-edu';
+                eduSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-24';
+                eduSelect.innerHTML = `<option value="">Ta'lim</option><option value="kunduzgi">Kunduzgi</option><option value="sirtqi">Sirtqi</option><option value="kechki">Kechki</option>`;
+                eduSelect.onchange = () => loadData(token);
+                filterContainer.appendChild(eduSelect);
+
+                // Direction Filter
+                const dirSelect = document.createElement('select');
+                dirSelect.id = 'filter-results-dir';
+                dirSelect.className = 'border rounded px-3 py-1 text-sm mr-2 w-32';
+                dirSelect.innerHTML = '<option value="">Yo\'nalish</option>';
+                filterContainer.appendChild(dirSelect);
+                // Populate Directions
+                axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                    .then(res => {
+                        (res.data.results || res.data).forEach(d => {
+                            dirSelect.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+                        });
+                    });
+                dirSelect.onchange = () => loadData(token);
+
+
+                // Date Filters
+                const startInp = document.createElement('input');
+                startInp.type = 'date';
+                startInp.id = 'filter-start-date';
+                startInp.className = 'border rounded px-3 py-1 text-sm mr-2';
+                startInp.onchange = () => loadData(token);
+                filterContainer.appendChild(startInp);
+
+                const endInp = document.createElement('input');
+                endInp.type = 'date';
+                endInp.id = 'filter-end-date';
+                endInp.className = 'border rounded px-3 py-1 text-sm mr-2';
+                endInp.onchange = () => loadData(token);
+                filterContainer.appendChild(endInp);
+
 
                 // 4. Export Button
                 const exportBtn = document.createElement('button');
@@ -584,7 +908,14 @@
                     const statusVal = document.getElementById('filter-status').value;
                     const search = document.getElementById('searchInput').value;
 
-                    const url = `/api/results/export_excel/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}`;
+                    // New params
+                    const course = document.getElementById('filter-results-course').value;
+                    const edu = document.getElementById('filter-results-edu').value;
+                    const dir = document.getElementById('filter-results-dir').value;
+                    const start = document.getElementById('filter-start-date').value;
+                    const end = document.getElementById('filter-end-date').value;
+
+                    const url = `/api/results/export_excel/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}&course=${course}&education_form=${edu}&direction=${dir}&start_date=${start}&end_date=${end}`;
 
                     try {
                         exportBtn.textContent = 'Yuklanmoqda...';
@@ -614,27 +945,29 @@
                 filterContainer.appendChild(exportBtn);
             }
 
-            if (['admin', 'dean'].includes(user.role)) {
-                document.getElementById('menu-students').classList.remove('hidden');
-                document.getElementById('menu-groups').classList.remove('hidden');
-                document.getElementById('menu-results').classList.remove('hidden');
-            }
-            if (['admin', 'teacher'].includes(user.role)) {
-                document.getElementById('menu-subjects').classList.remove('hidden');
-                document.getElementById('menu-tests').classList.remove('hidden');
-            }
-            // Failsafe: Explicitly hide results for teacher if it somehow leaked
-            if (user.role === 'teacher') {
-                const resLink = document.getElementById('menu-results');
-                if (resLink) resLink.classList.add('hidden');
-            }
+            // Sidebar Logic based on Permissions
             if (user.role === 'admin') {
-                document.getElementById('menu-employees').classList.remove('hidden');
-                document.getElementById('menu-directions').classList.remove('hidden');
-                document.getElementById('menu-monitoring').classList.remove('hidden');
-            }
-            if (user.role === 'student') {
-                document.getElementById('menu-results').classList.remove('hidden');
+                // Admin sees everything
+                ['dashboard', 'monitoring', 'groups', 'students', 'results', 'directions', 'subjects', 'tests', 'employees', 'log_system'].forEach(m => {
+                    const el = document.getElementById(`menu-${m}`);
+                    if (el) el.classList.remove('hidden');
+                });
+            } else {
+                // Check granular permissions
+                if (user.permissions && Array.isArray(user.permissions)) {
+                    user.permissions.forEach(p => {
+                        if (p.can_view && p.module) {
+                            const el = document.getElementById(`menu-${p.module}`);
+                            if (el) el.classList.remove('hidden');
+                        }
+                    });
+                }
+
+                // Student specific overrides (if not covered by permissions yet)
+                if (user.role === 'student') {
+                    const resMenu = document.getElementById('menu-results');
+                    if (resMenu) resMenu.classList.remove('hidden');
+                }
             }
 
             // Update Sidebar Profile Info
@@ -691,8 +1024,8 @@
 
             const params = { search };
 
-            // Only send pagination params if page supports it (students, results, subjects, directions, employees)
-            if (['students', 'results', 'subjects', 'directions', 'employees'].includes(PAGE)) {
+            // Only send pagination params if page supports it (students, results, subjects, directions, employees, tests)
+            if (['students', 'results', 'subjects', 'directions', 'employees', 'tests'].includes(PAGE)) {
                 params.page = page;
                 params.page_size = pageSize;
             }
@@ -716,6 +1049,19 @@
             if (testFilter && testFilter.value) params.test = testFilter.value;
             if (groupResultsFilter && groupResultsFilter.value) params.student__group = groupResultsFilter.value;
             if (statusFilter && statusFilter.value) params.status = statusFilter.value;
+
+            // Result Extended Filters
+            const rCourse = document.getElementById('filter-results-course');
+            const rEdu = document.getElementById('filter-results-edu');
+            const rDir = document.getElementById('filter-results-dir');
+            const rStart = document.getElementById('filter-start-date');
+            const rEnd = document.getElementById('filter-end-date');
+
+            if (rCourse && rCourse.value) params.course = rCourse.value;
+            if (rEdu && rEdu.value) params.education_form = rEdu.value;
+            if (rDir && rDir.value) params.direction = rDir.value;
+            if (rStart && rStart.value) params.start_date = rStart.value;
+            if (rEnd && rEnd.value) params.end_date = rEnd.value;
 
             // Add Ordering
             if (currentOrder) params.ordering = currentOrder;
@@ -800,6 +1146,11 @@
 
     // CRUD ACTIONS
     window.openCreateModal = async () => {
+        if (PAGE === 'employees') {
+            openEmployeeModal();
+            return;
+        }
+
         currentId = null;
         document.getElementById('modalTitle').textContent = `Yangi ${config.title} qo'shish`;
 
@@ -941,6 +1292,10 @@
     }
 
     window.editItem = async (id) => {
+        if (PAGE === 'employees') {
+            openEmployeeModal(id);
+            return;
+        }
         currentId = id;
         document.getElementById('modalTitle').textContent = `${config.title} Tahrirlash`;
         const token = localStorage.getItem('access_token');
@@ -1098,7 +1453,11 @@
                 await axios.delete(`${config.api}${id}/`, { headers: { Authorization: `Bearer ${token}` } });
                 loadData(token, currentPage); // Reload current page
             } catch (error) {
-                showModal('Xatolik', 'O\'chirishda xatolik yuz berdi');
+                let msg = 'O\'chirishda xatolik yuz berdi';
+                if (error.response && error.response.status === 403 && error.response.data.detail) {
+                    msg = error.response.data.detail;
+                }
+                showModal('Xatolik', msg);
             }
         });
     };
@@ -1124,6 +1483,33 @@
                 }
             });
 
+            // Special handling for permissions_matrix
+            config.fields.forEach(field => {
+                if (field.type === 'permissions_matrix') {
+                    const permissions = [];
+                    field.modules.forEach(mod => {
+                        const row = { module: mod.val };
+                        let hasAny = false;
+                        ['view', 'update', 'create', 'delete', 'export'].forEach(action => {
+                            const cb = document.getElementById(`perm-${mod.val}-${action}`);
+                            if (cb && cb.checked) {
+                                row[`can_${action}`] = true;
+                                hasAny = true;
+                            } else {
+                                row[`can_${action}`] = false;
+                            }
+                        });
+                        if (hasAny) permissions.push(row);
+                    });
+                    formData['module_accesses'] = permissions;
+                }
+            });
+
+            // Default Role for Employees if removed from UI
+            if (PAGE === 'employees' && !formData.role) {
+                formData.role = 'teacher'; // Default to teacher so they appear in list (not student)
+            }
+
             // Special handling for Test dates formatting if needed
             // Django expects ISO format, datetime-local provides 'YYYY-MM-DDTHH:mm' which works mostly.
 
@@ -1138,7 +1524,11 @@
             console.error(error);
             let msg = 'Saqlashda xatolik yuz berdi';
             if (error.response && error.response.data) {
-                msg = JSON.stringify(error.response.data);
+                if (error.response.status === 403 && error.response.data.detail) {
+                    msg = error.response.data.detail;
+                } else {
+                    msg = JSON.stringify(error.response.data);
+                }
             }
             showModal('Xatolik', msg);
         }
@@ -1164,34 +1554,92 @@
         const container = document.getElementById('modalFormContainer');
         container.innerHTML = config.fields.map(f => {
             let val = values[f.name] || '';
-            // Datetime fix: remove 'Z' and milliseconds for input type=datetime-local if needed
+            // Datetime fix
             if (f.type === 'datetime-local' && val) val = val.slice(0, 16);
 
-            if (f.type === 'select') {
-                const options = f.options.map(o => `<option value="${o.val}" ${val === o.val ? 'selected' : ''}>${o.text}</option>`).join('');
+            if (f.type === 'permissions_matrix') {
+                const existingPerms = values[f.name] || []; // Array of {module:..., can_view:...}
+
+                const getChecked = (mod, action) => {
+                    const found = existingPerms.find(p => p.module === mod);
+                    return (found && found[`can_${action}`]) ? 'checked' : '';
+                };
+
+                const rows = f.modules.map(mod => `
+                    <tr class="hover:bg-gray-50 border-b">
+                        <td class="px-4 py-2 text-sm font-medium text-gray-700">${mod.text}</td>
+                        <td class="px-4 py-2 text-center"><input type="checkbox" id="perm-${mod.val}-view" ${getChecked(mod.val, 'view')} class="w-4 h-4 text-blue-600 rounded"></td>
+                        <td class="px-4 py-2 text-center"><input type="checkbox" id="perm-${mod.val}-update" ${getChecked(mod.val, 'update')} class="w-4 h-4 text-blue-600 rounded"></td>
+                        <td class="px-4 py-2 text-center"><input type="checkbox" id="perm-${mod.val}-create" ${getChecked(mod.val, 'create')} class="w-4 h-4 text-blue-600 rounded"></td>
+                        <td class="px-4 py-2 text-center"><input type="checkbox" id="perm-${mod.val}-delete" ${getChecked(mod.val, 'delete')} class="w-4 h-4 text-blue-600 rounded"></td>
+                        <td class="px-4 py-2 text-center"><input type="checkbox" id="perm-${mod.val}-export" ${getChecked(mod.val, 'export')} class="w-4 h-4 text-blue-600 rounded"></td>
+                        <td class="px-4 py-2 text-center"><input type="checkbox" onchange="toggleRow('${mod.val}', this.checked)" class="w-4 h-4 text-indigo-600 rounded"></td>
+                    </tr>
+                `).join('');
+
                 return `
-                 <div class="mb-4 text-left">
+                <div class="mb-4 text-left">
                     <label class="block text-gray-700 text-sm font-bold mb-2">${f.label}</label>
-                    <select id="field-${f.name}" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                        ${options}
-                    </select>
+                    <div class="overflow-x-auto border rounded-lg max-h-64 overflow-y-auto">
+                        <table class="min-w-full divide-y divide-gray-200 head-fixed">
+                            <thead class="bg-gray-100 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Imkoniyatlar</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">View</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Update</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Create</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Delete</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Exp/Imp</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">All</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                ${rows}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>`;
+            }
+
+            if (f.type === 'select') {
+                const options = f.options.map(o => `<option value="${o.val}" ${val === o.val ? 'selected' : ''}>${o.text}</option>
+`).join('');
+                return `
+<div class="mb-4 text-left">
+    <label class="block text-gray-700 text-sm font-bold mb-2">${f.label}</label>
+    <select id="field-${f.name}"
+        class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        ${options}
+    </select>
+</div>`;
             }
 
             if (f.type === 'checkbox') {
                 return `
-                    <div class="mb-4 text-left flex items-center">
-                        <input type="checkbox" id="field-${f.name}" ${val ? 'checked' : ''} class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                        <label class="ml-2 block text-gray-700 text-sm font-bold">${f.label}</label>
-                    </div>`;
+<div class="mb-4 text-left flex items-center">
+    <input type="checkbox" id="field-${f.name}" ${val ? 'checked' : ''}
+        class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+    <label class="ml-2 block text-gray-700 text-sm font-bold">${f.label}</label>
+</div>`;
             }
 
             return `
-            <div class="mb-4 text-left">
-                <label class="block text-gray-700 text-sm font-bold mb-2">${f.label}</label>
-                <input type="${f.type}" id="field-${f.name}" value="${val}" placeholder="${f.placeholder || ''}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
-        `}).join('');
+<div class="mb-4 text-left">
+    <label class="block text-gray-700 text-sm font-bold mb-2">${f.label}</label>
+    <input type="${f.type}" id="field-${f.name}" value="${val}" placeholder="${f.placeholder || ''}"
+        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+</div>
+`}).join('');
+
+        // Add toggle helper global wrapper if not exists
+        if (!window.toggleRow) {
+            window.toggleRow = (mod, checked) => {
+                ['view', 'update', 'create', 'delete', 'export'].forEach(act => {
+                    const cb = document.getElementById('perm-' + mod + '-' + act);
+                    if (cb) cb.checked = checked;
+                });
+            };
+        }
     }
 
     let currentImportActionUrl = '';
@@ -1250,8 +1698,8 @@
             }
         } else if (currentSampleUrl) {
             // Update existing button logic if url changed (simple reload needed ideally, but keeping it simple)
-            // For now assuming modal recreation or smart update isn't strictly needed if reload handles it, 
-            // but here we are in same page SPA-ish. 
+            // For now assuming modal recreation or smart update isn't strictly needed if reload handles it,
+            // but here we are in same page SPA-ish.
             // Let's just remove old btn and re-add if we want to be safe, or just update click handler.
             const oldBtn = document.getElementById('sample-download-btn');
             if (oldBtn) oldBtn.remove();
@@ -1321,7 +1769,8 @@
 
             loadData(token);
         } catch (e) {
-            alert('Import xatosi: ' + ((e.response && e.response.data && e.response.data.error) ? e.response.data.error : e.message));
+            alert('Import xatosi: ' + ((e.response && e.response.data && e.response.data.error) ? e.response.data.error :
+                e.message));
         }
     }
 
@@ -1339,7 +1788,12 @@
         const token = localStorage.getItem('access_token');
         try {
             container.innerHTML = '<p class="text-sm text-gray-500">Yuklanmoqda...</p>';
-            const res = await axios.get('/api/groups/?page_size=1000&is_system_active=true', { headers: { Authorization: `Bearer ${token}` } });
+            const res = await axios.get('/api/groups/?page_size=1000&is_system_active=true', {
+                headers: {
+                    Authorization: `Bearer
+${token}`
+                }
+            });
             const groups = res.data.results || res.data;
 
             if (!groups || groups.length === 0) {
@@ -1348,13 +1802,14 @@
             }
 
             container.innerHTML = groups.map(g => `
-                <div class="flex items-center mb-2 px-2 py-1 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200">
-                    <input type="checkbox" id="assign-g-${g.id}" value="${g.id}" class="group-assign-cb w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                    <label for="assign-g-${g.id}" class="ml-2 block text-sm text-gray-900 cursor-pointer w-full select-none">
-                        ${g.name} <span class="text-gray-400 text-xs">(${g.course}-kurs)</span>
-                    </label>
-                </div>
-            `).join('');
+<div class="flex items-center mb-2 px-2 py-1 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200">
+    <input type="checkbox" id="assign-g-${g.id}" value="${g.id}"
+        class="group-assign-cb w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+    <label for="assign-g-${g.id}" class="ml-2 block text-sm text-gray-900 cursor-pointer w-full select-none">
+        ${g.name} <span class="text-gray-400 text-xs">(${g.course}-kurs)</span>
+    </label>
+</div>
+`).join('');
 
         } catch (e) {
             console.error(e);
@@ -1391,6 +1846,249 @@
             showModal('Xatolik', e.response?.data?.error || "Biriktirishda xatolik yuz berdi");
         }
     }
+
+    // --- EMPLOYEE MODAL LOGIC ---
+    const EMP_MODULES = [
+        { val: 'dashboard', text: 'Bosh sahifa' },
+        { val: 'monitoring', text: 'Monitoring' },
+        { val: 'groups', text: 'Guruhlar' },
+        { val: 'students', text: 'Talabalar' },
+        { val: 'results', text: 'Natijalar' },
+        { val: 'directions', text: 'Yo\'nalishlar' },
+        { val: 'subjects', text: 'Fanlar' },
+        { val: 'tests', text: 'Testlar' },
+        { val: 'employees', text: 'Xodimlar' },
+        { val: 'log_system', text: 'Loglar' }
+    ];
+
+    window.openEmployeeModal = async (id = null) => {
+        currentId = id; // Global ID reuse
+        document.getElementById('employeeModalTitle').textContent = id ? "Xodimni Tahrirlash" : "Yangi Xodim Qo'shish";
+        document.getElementById('emp-password-req').classList.toggle('hidden', !!id);
+
+        // Clear Inputs
+        ['first_name', 'last_name', 'username', 'password', 'phone'].forEach(f => document.getElementById(`emp-${f}`).value = '');
+
+        // Generate Permissions Table
+        const tbody = document.getElementById('emp-permissions-body');
+        tbody.innerHTML = EMP_MODULES.map(mod => `
+            <tr class="hover:bg-gray-50 transition border-b last:border-0 group">
+                <td class="px-4 py-3 text-sm font-medium text-gray-700">${mod.text}</td>
+                <td class="px-2 py-3 text-center"><input type="checkbox" id="emp-perm-${mod.val}-view" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer transition"></td>
+                <td class="px-2 py-3 text-center"><input type="checkbox" id="emp-perm-${mod.val}-update" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer transition"></td>
+                <td class="px-2 py-3 text-center"><input type="checkbox" id="emp-perm-${mod.val}-create" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer transition"></td>
+                <td class="px-2 py-3 text-center"><input type="checkbox" id="emp-perm-${mod.val}-delete" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer transition"></td>
+                <td class="px-2 py-3 text-center"><input type="checkbox" id="emp-perm-${mod.val}-export" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer transition"></td>
+                <td class="px-2 py-3 text-center"><input type="checkbox" onchange="toggleEmpRow('${mod.val}', this.checked)" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer transition opacity-50 hover:opacity-100 group-hover:opacity-100"></td>
+            </tr>
+        `).join('');
+
+        // Fetch Data if Edit
+        if (id) {
+            const token = localStorage.getItem('access_token');
+            try {
+                const res = await axios.get(`/api/employees/${id}/`, { headers: { Authorization: `Bearer ${token}` } });
+                const data = res.data;
+
+                document.getElementById('emp-first_name').value = data.first_name;
+                document.getElementById('emp-last_name').value = data.last_name;
+                document.getElementById('emp-username').value = data.username;
+                document.getElementById('emp-phone').value = data.phone;
+
+                // Set Permissions
+                if (data.permissions) {
+                    data.permissions.forEach(p => {
+                        if (p.module) {
+                            ['view', 'update', 'create', 'delete', 'export'].forEach(act => {
+                                const cb = document.getElementById(`emp-perm-${p.module}-${act}`);
+                                if (cb) cb.checked = p[`can_${act}`];
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+                showModal('Xatolik', 'Ma\'lumotlarni yuklashda xatolik');
+                return;
+            }
+        } else {
+            // Defaults for new User? or Empty?
+            // Maybe set View for all by default? No, clean slate is better or use presets.
+        }
+
+        document.getElementById('employeeModal').classList.remove('hidden');
+    }
+
+    window.closeEmployeeModal = () => {
+        document.getElementById('employeeModal').classList.add('hidden');
+    }
+
+    window.toggleEmpRow = (mod, checked) => {
+        ['view', 'update', 'create', 'delete', 'export'].forEach(act => {
+            const cb = document.getElementById(`emp-perm-${mod}-${act}`);
+            if (cb) cb.checked = checked;
+        });
+    }
+
+    window.presetPermissions = (role) => {
+        // Reset first
+        document.querySelectorAll('#emp-permissions-body input[type="checkbox"]').forEach(c => c.checked = false);
+
+        if (role === 'dean') {
+            const modules = ['dashboard', 'groups', 'students', 'results', 'directions', 'subjects', 'tests', 'employees'];
+            modules.forEach(m => toggleEmpRow(m, true));
+        } else if (role === 'teacher') {
+            ['dashboard', 'groups', 'students', 'subjects', 'tests', 'results'].forEach(m => {
+                document.getElementById(`emp-perm-${m}-view`).checked = true;
+            });
+            // Teachers can create/edit tests and results
+            ['tests', 'results'].forEach(m => {
+                document.getElementById(`emp-perm-${m}-create`).checked = true;
+                document.getElementById(`emp-perm-${m}-update`).checked = true;
+            });
+        }
+    }
+
+    window.saveEmployee = async () => {
+        const token = localStorage.getItem('access_token');
+        const firstName = document.getElementById('emp-first_name').value;
+        const lastName = document.getElementById('emp-last_name').value;
+        const username = document.getElementById('emp-username').value;
+        const password = document.getElementById('emp-password').value;
+        const phone = document.getElementById('emp-phone').value;
+
+        if (!firstName || !lastName || !username) {
+            showModal('Diqqat', 'Ism, Familiya va Login maydonlari majburiy!');
+            return;
+        }
+
+        if (!currentId && !password) {
+            showModal('Diqqat', 'Yangi xodim uchun parol majburiy!');
+            return;
+        }
+
+        const payload = {
+            first_name: firstName,
+            last_name: lastName,
+            username: username,
+            phone: phone,
+            role: 'teacher' // Default role for manual creation
+        };
+
+        if (password) payload.password = password;
+
+        // Collect Permissions
+        const permissions = [];
+        EMP_MODULES.forEach(mod => {
+            const row = { module: mod.val };
+            let hasAny = false;
+            ['view', 'update', 'create', 'delete', 'export'].forEach(act => {
+                const cb = document.getElementById(`emp-perm-${mod.val}-${act}`);
+                if (cb && cb.checked) {
+                    row[`can_${act}`] = true;
+                    hasAny = true;
+                } else {
+                    row[`can_${act}`] = false;
+                }
+            });
+            if (hasAny) permissions.push(row);
+        });
+
+        payload.module_accesses = permissions; // Backend expects 'module_accesses' in create/update on CustomUserSerializer? 
+        // Wait, CustomUserSerializer uses `permissions = ModuleAccessSerializer(source='module_accesses'...)`
+        // So validation/input might expect 'permissions' or 'module_accesses'. 
+        // Serializer field is 'permissions', source is 'module_accesses'.
+        // In DRF ModelSerializer, if I send 'permissions', it maps to 'module_accesses' via source if writable?
+        // Actually, CustomUserSerializer has `permissions = ...`.
+        // Let's send `module_accesses` as the key because `serializers.py` `create` populates `permissions_data = validated_data.pop('module_accesses', [])`.
+        // But the field name exposed in API is `permissions`.
+        // Let's send `module_accesses` effectively, or just send `permissions` and hope DRF maps it back.
+        // Actually in serializer `fields = (..., 'permissions', ...)`
+        // If I send 'permissions' JSON, DRF serializer will receive it as `permissions`. 
+        // But the source is `module_accesses`. 
+        // safer to use the key that matched the serializer field name: 'permissions'.
+        payload.permissions = permissions;
+
+        try {
+            if (currentId) {
+                await axios.patch(`/api/employees/${currentId}/`, payload, { headers: { Authorization: `Bearer ${token}` } });
+            } else {
+                await axios.post(`/api/employees/`, payload, { headers: { Authorization: `Bearer ${token}` } });
+            }
+
+            closeEmployeeModal();
+            loadData(token, currentPage);
+            showModal('Muvaffaqiyatli', 'Xodim ma\'lumotlari saqlandi');
+        } catch (error) {
+            console.error(error);
+            let msg = 'Saqlashda xatolik';
+            if (error.response && error.response.data) {
+                // Formatting error
+                msg = Object.entries(error.response.data).map(([k, v]) => `${k}: ${v}`).join('\n');
+            }
+            showModal('Xatolik', msg);
+        }
+    }
+
+    // Bulk Actions Logic
+    window.toggleAll = (checked) => {
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = checked);
+        updateToolbar();
+    };
+
+    window.updateToolbar = () => {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        document.getElementById('selected-count').textContent = checkedCount;
+        const toolbar = document.getElementById('bulk-actions');
+
+        if (checkedCount > 0) {
+            toolbar.classList.remove('hidden');
+        } else {
+            toolbar.classList.add('hidden');
+            const masterCb = document.getElementById('select-all-cb');
+            if (masterCb) masterCb.checked = false;
+        }
+    };
+
+    window.clearSelection = () => {
+        toggleAll(false);
+    };
+
+    window.executeBulkAction = async (action) => {
+        const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
+        if (selectedIds.length === 0) return;
+
+        let confirmMsg = '';
+        if (action === 'delete') confirmMsg = `Haqiqatan ham ${selectedIds.length} ta elementni o'chirmoqchimisiz?`;
+        else if (action === 'retake') confirmMsg = `Haqiqatan ham ${selectedIds.length} ta talabaga qayta topshirishga ruxsat bermoqchimisiz?`;
+        else if (action === 'activate') confirmMsg = `Haqiqatan ham ${selectedIds.length} ta elementni faollashtirmoqchimisiz?`;
+        else if (action === 'deactivate') confirmMsg = `Haqiqatan ham ${selectedIds.length} ta elementni nofaol qilmoqchimisiz?`;
+
+        showModal('Tasdiqlash', confirmMsg, async () => {
+            const token = localStorage.getItem('access_token');
+            try {
+                const res = await axios.post(`${config.api}bulk_action/`, {
+                    action: action,
+                    ids: selectedIds
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                let successMsg = "Bajarildi";
+                if (action === 'delete') successMsg = "O'chirildi";
+                else if (action === 'retake') successMsg = "Ruxsat berildi";
+                else if (action === 'activate') successMsg = "Faollashtirildi";
+                else if (action === 'deactivate') successMsg = "Nofaol qilindi";
+
+                showModal('Muvaffaqiyatli', successMsg);
+                loadData(token, currentPage);
+                clearSelection();
+            } catch (e) {
+                console.error(e);
+                showModal('Xatolik', 'Amaliyot bajarilmadi. ' + (e.response?.data?.error || ''));
+            }
+        });
+    };
 
     function logout() {
         localStorage.removeItem('access_token');

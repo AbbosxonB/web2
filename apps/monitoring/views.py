@@ -15,9 +15,10 @@ class DashboardStatsView(APIView):
         five_mins_ago = now - timedelta(minutes=5)
 
         # 1. Online Users (Active in last 5 mins)
-        # Assuming SystemLog tracks 'login' or any action. 
-        # Better: Count unique users who logged an action in last 5 mins.
-        online_count = SystemLog.objects.filter(timestamp__gte=five_mins_ago).values('user').distinct().count()
+        # Using the new last_activity field
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        online_count = User.objects.filter(last_activity__gte=five_mins_ago, role='student').count()
 
         # 2. Active Exams
         active_exams = Test.objects.filter(status='active', start_date__lte=now, end_date__gte=now)
@@ -44,32 +45,29 @@ class OnlineUsersDetailView(APIView):
         now = timezone.now()
         five_mins_ago = now - timedelta(minutes=5)
 
-        # Get unique users active in last 5 mins
-        logs = SystemLog.objects.filter(timestamp__gte=five_mins_ago).select_related('user').order_by('-timestamp')
+        # Get users active in last 5 mins
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = User.objects.filter(last_activity__gte=five_mins_ago, role='student').select_related('student_profile__group').order_by('-last_activity')
         
-        # We need unique users, but we also want their latest timestamp.
-        # SystemLog might have multiple entries per user.
-        # We'll use a dictionary to deduplicate by user_id
-        online_users = {}
-        for log in logs:
-            if log.user and log.user.id not in online_users:
-                # Basic user info
-                group_name = "-"
-                # Try to get group if student
-                if hasattr(log.user, 'student_profile') and log.user.student_profile.group:
-                    group_name = log.user.student_profile.group.name
+        online_users_data = []
+        for user in users:
+            group_name = "-"
+            # Try to get group if student
+            if hasattr(user, 'student_profile') and user.student_profile.group:
+                group_name = user.student_profile.group.name
 
-                online_users[log.user.id] = {
-                    'id': log.user.id,
-                    'full_name': f"{log.user.first_name} {log.user.last_name}",
-                    'username': log.user.username,
-                    'role': log.user.role,
-                    'group': group_name,
-                    'last_seen': log.timestamp,
-                    'ip': log.ip_address
-                }
+            online_users_data.append({
+                'id': user.id,
+                'full_name': f"{user.first_name} {user.last_name}",
+                'username': user.username,
+                'role': user.role,
+                'group': group_name,
+                'last_seen': user.last_activity,
+                'ip': None # IP tracking needs middleware or dedicated logic if strict requirement
+            })
         
-        return Response(list(online_users.values()))
+        return Response(online_users_data)
 
 class SecurityAlertView(APIView):
     permission_classes = [permissions.IsAdminUser]
@@ -137,6 +135,59 @@ class ReportViolationView(APIView):
         )
         
         return Response({'status': 'logged'})
+
+class GlobalSettingsView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from apps.monitoring.models import GlobalSetting
+        val = GlobalSetting.get_value('camera_required_globally', 'false')
+        return Response({'camera_required_globally': val == 'true'})
+
+    def post(self, request):
+        from apps.monitoring.models import GlobalSetting
+        key = request.data.get('key')
+        value = request.data.get('value')
+        
+        if key == 'camera_required_globally':
+            GlobalSetting.set_value(key, str(value).lower())
+            return Response({'status': 'success', 'key': key, 'value': value})
+            
+        return Response({'error': 'Invalid key'}, status=400)
+
+class LiveProctoringView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        now = timezone.now()
+        thirty_secs_ago = now - timedelta(seconds=30) # Consider online if snap within 30s
+        
+        # Get latest snapshot for each student/test
+        # Efficient way: Group by student/test, take max(timestamp)
+        # OR just filter TestSnapshots in last 30s and distinct.
+        
+        from apps.tests.models import TestSnapshot
+        snapshots = TestSnapshot.objects.filter(timestamp__gte=thirty_secs_ago).select_related('student', 'test').order_by('-timestamp')
+        
+        # Deduplicate manually or via distinct (Postgres only for distinct('student'))
+        # Using manual dict for compatibility
+        latest_snaps = {}
+        for snap in snapshots:
+            if snap.student_id not in latest_snaps:
+                latest_snaps[snap.student_id] = snap
+                
+        data = []
+        for snap in latest_snaps.values():
+            data.append({
+                'student_name': snap.student.full_name,
+                'student_id': snap.student.student_id,
+                'test_title': snap.test.title,
+                'image_url': snap.image.url if snap.image else None,
+                'timestamp': snap.timestamp,
+                'status': 'online' # Logic: if here, it's recent
+            })
+            
+        return Response(data)
 
 def monitoring_page_view(request):
     from django.shortcuts import render

@@ -131,21 +131,27 @@
             document.getElementById('role-display').textContent = user.role;
 
             // Show Roles Menus
-            // Show Roles Menus
-            if (['admin', 'dean'].includes(user.role)) {
-                document.getElementById('menu-students').classList.remove('hidden');
-                document.getElementById('menu-groups').classList.remove('hidden');
-                document.getElementById('menu-results').classList.remove('hidden');
-            }
-            if (['admin', 'teacher'].includes(user.role)) {
-                document.getElementById('menu-subjects').classList.remove('hidden');
-                document.getElementById('menu-tests').classList.remove('hidden');
-            }
             if (user.role === 'admin') {
-                document.getElementById('menu-employees').classList.remove('hidden');
-                document.getElementById('menu-directions').classList.remove('hidden');
-                document.getElementById('menu-monitoring').classList.remove('hidden');
+                ['dashboard', 'monitoring', 'groups', 'students', 'results', 'directions', 'subjects', 'tests', 'employees'].forEach(m => {
+                    const el = document.getElementById(`menu-${m}`);
+                    if (el) el.classList.remove('hidden');
+                });
+            } else {
+                if (user.permissions && Array.isArray(user.permissions)) {
+                    user.permissions.forEach(p => {
+                        if (p.can_view && p.module) {
+                            const el = document.getElementById(`menu-${p.module}`);
+                            if (el) el.classList.remove('hidden');
+                        }
+                    });
+                }
+                if (user.role === 'student') {
+                    const resMenu = document.getElementById('menu-results');
+                    if (resMenu) resMenu.classList.remove('hidden');
+                }
+            }
 
+            if (user.role === 'admin') {
                 // 1. Render Stats Grid
                 const statsGrid = document.getElementById('stats-grid');
                 statsGrid.innerHTML = `
@@ -297,7 +303,8 @@
             const res = await axios.get('/api/tests/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const tests = res.data;
+            // Handle pagination (results array) or flat array
+            const tests = res.data.results || res.data;
             const container = document.getElementById('available-tests');
 
             if (tests.length === 0) {

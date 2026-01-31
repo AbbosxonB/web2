@@ -11,7 +11,7 @@ class StudentSerializer(serializers.ModelSerializer):
     group_details = GroupSerializer(source='group', read_only=True)
     # Extra fields for user creation
     username = serializers.CharField(source='user.username', read_only=True)
-    password = serializers.CharField(write_only=False, required=False, source='plain_password')
+    password = serializers.CharField(write_only=False, required=False, source='plain_password', allow_blank=True)
 
     class Meta:
         model = Student
@@ -59,5 +59,8 @@ class StudentSerializer(serializers.ModelSerializer):
             instance.user.set_password(new_password)
             instance.user.save()
             # plain_password is automatically updated on instance by serializer from validated_data
+        elif 'plain_password' in validated_data:
+            # If empty string was passed (due to allow_blank=True), we remove it to keep old plain_password
+            del validated_data['plain_password']
             
         return super().update(instance, validated_data)

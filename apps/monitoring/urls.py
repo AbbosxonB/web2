@@ -5,7 +5,9 @@ from .views import (
     MassControlView,
     ReportViolationView,
     monitoring_page_view,
-    OnlineUsersDetailView
+    OnlineUsersDetailView,
+    GlobalSettingsView,
+    LiveProctoringView
 )
 
 urlpatterns = [
@@ -14,4 +16,6 @@ urlpatterns = [
     path('alerts/', SecurityAlertView.as_view(), name='security-alerts'),
     path('control/', MassControlView.as_view(), name='mass-control'),
     path('report/', ReportViolationView.as_view(), name='report-violation'),
+    path('settings/', GlobalSettingsView.as_view(), name='global-settings'),
+    path('live/', LiveProctoringView.as_view(), name='live-proctoring'),
 ]

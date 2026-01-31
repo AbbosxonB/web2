@@ -21,6 +21,7 @@ class Test(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    allow_mobile_access = models.BooleanField(default=True, help_text="Telefondan kirishga ruxsat berish")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_tests')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -49,3 +50,12 @@ class TestAssignment(models.Model):
 
     def __str__(self):
         return f"{self.test.title} - {self.group.name}"
+
+class TestSnapshot(models.Model):
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='snapshots')
+    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='snapshots')
+    image = models.ImageField(upload_to='snapshots/%Y/%m/%d/')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.timestamp}"

@@ -10,7 +10,7 @@ class ModuleAccessSerializer(serializers.ModelSerializer):
 
 class CustomUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
-    permissions = ModuleAccessSerializer(source='module_accesses', many=True, read_only=True)
+    permissions = ModuleAccessSerializer(source='module_accesses', many=True, required=False)
     
     class Meta:
         model = CustomUser
@@ -18,18 +18,34 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
+        permissions_data = validated_data.pop('module_accesses', [])
+        
         user = super().create(validated_data)
         if password:
             user.set_password(password)
             user.save()
+            
+        for perm in permissions_data:
+            ModuleAccess.objects.create(user=user, **perm)
+            
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
+        permissions_data = validated_data.pop('module_accesses', None)
+        
         user = super().update(instance, validated_data)
         if password:
             user.set_password(password)
             user.save()
+
+        if permissions_data is not None:
+            # Simple strategy: clear old and re-create, or update in place.
+            # Re-creating ensures clean slate. 
+            instance.module_accesses.all().delete()
+            for perm in permissions_data:
+                ModuleAccess.objects.create(user=instance, **perm)
+            
         return user
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer

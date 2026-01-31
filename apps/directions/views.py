@@ -11,7 +11,9 @@ class CustomPagination(pagination.PageNumberPagination):
 class DirectionViewSet(viewsets.ModelViewSet):
     queryset = Direction.objects.all()
     serializer_class = DirectionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    from apps.accounts.granular_permissions import GranularPermission
+    permission_classes = [permissions.IsAuthenticated, GranularPermission]
+    module_name = 'directions'
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'code']

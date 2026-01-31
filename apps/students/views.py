@@ -11,7 +11,10 @@ class CustomPagination(pagination.PageNumberPagination):
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    from apps.accounts.granular_permissions import GranularPermission
+    # permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, GranularPermission]
+    module_name = 'students'
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['full_name', 'student_id']
@@ -19,7 +22,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     ordering = ['full_name']
 
     def get_queryset(self):
-        print(f"DEBUG: Query Params: {self.request.query_params}")
+        # print(f"DEBUG: Query Params: {self.request.query_params}")
         queryset = Student.objects.all()
         group = self.request.query_params.get('group')
         direction = self.request.query_params.get('direction')
@@ -36,6 +39,42 @@ class StudentViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(education_form__iexact=education_form)
             
         return queryset
+
+    def update(self, request, *args, **kwargs):
+        # Custom update to handle password or specific logic if needed, 
+        # but mostly relying on serializer. 
+        # Removing debug logging.
+        return super().update(request, *args, **kwargs)
+
+    @decorators.action(detail=False, methods=['post'])
+    def bulk_action(self, request):
+        user = request.user
+        if user.role != 'admin' and (not user.permissions or not any(p.module == 'students' and p.can_update for p in user.permissions)):
+             return Response({'error': 'Huquq yo\'q'}, status=403)
+        
+        action = request.data.get('action')
+        ids = request.data.get('ids', [])
+        
+        if not ids:
+            return Response({'error': 'Hech narsa tanlanmadi'}, status=400)
+            
+        queryset = Student.objects.filter(id__in=ids)
+        
+        if action == 'delete':
+             if user.role != 'admin' and (not user.permissions or not any(p.module == 'students' and p.can_delete for p in user.permissions)):
+                 return Response({'error': 'O\'chirish uchun huquq yo\'q'}, status=403)
+             queryset.delete()
+             return Response({'status': 'deleted', 'count': len(ids)})
+             
+        elif action == 'activate':
+            queryset.update(is_system_active=True)
+            return Response({'status': 'activated', 'count': len(ids)})
+            
+        elif action == 'deactivate':
+            queryset.update(is_system_active=False)
+            return Response({'status': 'deactivated', 'count': len(ids)})
+            
+        return Response({'error': 'Noto\'g\'ri amal'}, status=400)
 
     @decorators.action(detail=False, methods=['post'], url_path='import')
     def import_students(self, request):

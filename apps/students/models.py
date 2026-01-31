@@ -14,6 +14,12 @@ class Student(models.Model):
         ('expelled', 'O\'qishni to\'xtatgan'),
     )
     
+    CAMERA_MODES = (
+        ('default', 'Global sozlamaga bo\'ysunish'),
+        ('required', 'Doimiy majburiy'),
+        ('not_required', 'Majburiy emas'),
+    )
+
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='student_profile')
     student_id = models.CharField(max_length=50, unique=True)
     full_name = models.CharField(max_length=255)
@@ -24,6 +30,7 @@ class Student(models.Model):
     phone = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUSES, default='active')
+    camera_mode = models.CharField(max_length=20, choices=CAMERA_MODES, default='default')
     is_system_active = models.BooleanField(default=True)
     hemis_synced = models.BooleanField(default=False)
     plain_password = models.CharField(max_length=128, blank=True, null=True)

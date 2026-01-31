@@ -18,3 +18,24 @@ class TestResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestResult
         fields = '__all__'
+
+    duration = serializers.SerializerMethodField()
+    formatted_completed_at = serializers.SerializerMethodField()
+
+    def get_duration(self, obj):
+        if obj.completed_at and obj.started_at:
+            diff = obj.completed_at - obj.started_at
+            total_seconds = int(diff.total_seconds())
+            if total_seconds < 60:
+                return f"{total_seconds} sek"
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            return f"{minutes} min {seconds} sek"
+        return "N/A"
+
+    def get_formatted_completed_at(self, obj):
+        from django.utils import timezone
+        if obj.completed_at:
+            local_dt = timezone.localtime(obj.completed_at)
+            return local_dt.strftime("%d.%m.%Y %H:%M")
+        return "-"

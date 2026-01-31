@@ -24,7 +24,30 @@ class TestResultViewSet(viewsets.ModelViewSet):
         if user.role == 'student':
             # Students only see their own results
             return TestResult.objects.filter(student__user=user)
-        return TestResult.objects.all().select_related('student', 'test', 'student__group')
+        
+        queryset = TestResult.objects.all().select_related('student', 'test', 'student__group')
+
+        # Date Filtering
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date:
+            queryset = queryset.filter(completed_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(completed_at__date__lte=end_date)
+            
+        # Student Filters
+        course = self.request.query_params.get('course')
+        edu_form = self.request.query_params.get('education_form')
+        direction = self.request.query_params.get('direction')
+        
+        if course:
+            queryset = queryset.filter(student__course=course)
+        if edu_form:
+            queryset = queryset.filter(student__education_form=edu_form)
+        if direction:
+            queryset = queryset.filter(student__direction__icontains=direction)
+            
+        return queryset
 
     def perform_destroy(self, instance):
         user = self.request.user
@@ -45,6 +68,31 @@ class TestResultViewSet(viewsets.ModelViewSet):
         result.save()
         return Response({'status': 'retake_granted'})
 
+    @action(detail=False, methods=['post'])
+    def bulk_action(self, request):
+        user = request.user
+        if user.role not in ['admin', 'dean']:
+            return Response({'error': 'Huquq yo\'q'}, status=status.HTTP_403_FORBIDDEN)
+        
+        action = request.data.get('action')
+        ids = request.data.get('ids', [])
+        
+        if not ids:
+            return Response({'error': 'Hech narsa tanlanmadi'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        queryset = TestResult.objects.filter(id__in=ids)
+        
+        if action == 'delete':
+            # Check delete permission if needed, but admin/dean is already checked
+            queryset.delete()
+            return Response({'status': 'deleted', 'count': len(ids)})
+            
+        elif action == 'retake':
+            queryset.update(can_retake=True, retake_granted_by=user)
+            return Response({'status': 'retake_granted', 'count': len(ids)})
+            
+        return Response({'error': 'Noto\'g\'ri amal'}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=False, methods=['get'])
     def export_excel(self, request):
         import openpyxl
@@ -62,15 +110,39 @@ class TestResultViewSet(viewsets.ModelViewSet):
         ws.title = "Natijalar"
 
         # Headers
-        headers = ["Talaba", "Guruh", "Test", "Ball", "Maks. Ball", "Foiz", "Holat", "Sana"]
+        headers = ["ID", "Talaba", "Guruh", "Test", "Ball", "Maks. Ball", "Foiz", "Holat", "Tugagan vaqti", "Sarflangan vaqt", "Sana"]
         ws.append(headers)
 
+        from django.utils import timezone
+        
         for result in queryset:
             student_name = result.student.full_name if result.student else "Noma'lum"
             group_name = result.student.group.name if (result.student and result.student.group) else "-"
             test_title = result.test.title if result.test else "-"
             
+            # Calculate duration
+            duration_str = "-"
+            if result.completed_at and result.started_at:
+                diff = result.completed_at - result.started_at
+                total_seconds = int(diff.total_seconds())
+                if total_seconds < 60:
+                    duration_str = f"{total_seconds} sek"
+                else:
+                    minutes = total_seconds // 60
+                    seconds = total_seconds % 60
+                    duration_str = f"{minutes} min {seconds} sek"
+
+            # Localize times
+            completed_str = "-"
+            if result.completed_at:
+                completed_str = timezone.localtime(result.completed_at).strftime("%d.%m.%Y %H:%M")
+
+            started_str = "-"
+            if result.started_at:
+                started_str = timezone.localtime(result.started_at).strftime("%d.%m.%Y %H:%M")
+
             ws.append([
+                result.id,
                 student_name,
                 group_name,
                 test_title,
@@ -78,7 +150,9 @@ class TestResultViewSet(viewsets.ModelViewSet):
                 result.max_score,
                 f"{result.percentage:.1f}%",
                 result.status,
-                result.completed_at.strftime("%d.%m.%Y %H:%M") if result.completed_at else "-"
+                completed_str,
+                duration_str,
+                started_str
             ])
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

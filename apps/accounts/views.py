@@ -21,7 +21,9 @@ class CustomPagination(pagination.PageNumberPagination):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.exclude(role='student')
     serializer_class = CustomUserSerializer
-    permission_classes = [permissions.IsAdminUser] # Only admins can manage employees
+    from .granular_permissions import GranularPermission
+    permission_classes = [permissions.IsAuthenticated, GranularPermission] 
+    module_name = 'employees'
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ['username', 'first_name', 'last_name']

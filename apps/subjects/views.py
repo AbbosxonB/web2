@@ -12,7 +12,9 @@ class CustomPagination(pagination.PageNumberPagination):
 class SubjectViewSet(viewsets.ModelViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    from apps.accounts.granular_permissions import GranularPermission
+    permission_classes = [permissions.IsAuthenticated, GranularPermission]
+    module_name = 'subjects'
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'code']

@@ -19,6 +19,7 @@ from apps.results.views import result_list_view, TestResultViewSet
 from apps.directions.views import direction_list_view, DirectionViewSet
 from apps.accounts.views import CustomTokenObtainPairView
 from apps.monitoring.views import monitoring_page_view
+from apps.logs.views import log_system_view
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -64,7 +65,9 @@ urlpatterns = [
     path('tests/edit/<int:test_id>/', edit_test_view, name='edit_test_page'),
 
     path('results/', result_list_view, name='results_page'),
+    path('results/', result_list_view, name='results_page'),
     path('monitoring/', monitoring_page_view, name='monitoring_page'),
+    path('logs/', log_system_view, name='logs_page'),
 
     # Frontend URLs (Auth/Dash)
     path('', include('apps.accounts.urls')), 

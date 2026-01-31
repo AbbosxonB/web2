@@ -18,6 +18,7 @@ class CustomUser(AbstractUser):
     language = models.CharField(max_length=10, default='uz')
     photo = models.ImageField(upload_to='users/', null=True, blank=True)
     last_activity = models.DateTimeField(null=True, blank=True)
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -26,7 +27,16 @@ class CustomUser(AbstractUser):
 
 class ModuleAccess(models.Model):
     MODULE_CHOICES = (
-        ('dashboard', 'Dashboard'),
+        ('dashboard', 'Bosh sahifa'),
+        ('monitoring', 'Monitoring'),
+        ('groups', 'Guruhlar'),
+        ('students', 'Talabalar'),
+        ('results', 'Natijalar'),
+        ('directions', 'Yo\'nalishlar'),
+        ('subjects', 'Fanlar'),
+        ('tests', 'Testlar'),
+        ('employees', 'Xodimlar'),
+        # Legacy/Other
         ('tasks', 'Vazifalar'),
         ('applicants', 'Arizachilar'),
         ('second_specialty', 'Ikkinchi mutaxassislik'),
@@ -35,12 +45,9 @@ class ModuleAccess(models.Model):
         ('course_applications', 'Kurs arizalari'),
         ('registered', 'Ro\'yxatdan o\'tganlar'),
         ('offered', 'Taklif qilganlar'),
-        ('tests', 'Testlar'),
-        ('groups', 'Guruhlar'),
-        ('students', 'Talabalar'),
-        ('employees', 'Xodimlar'),
         ('log_system', 'Loglar'),
     )
+
 
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='module_accesses')
     module = models.CharField(max_length=50, choices=MODULE_CHOICES)
