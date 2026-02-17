@@ -11,10 +11,17 @@ class ModuleAccessSerializer(serializers.ModelSerializer):
 class CustomUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
     permissions = ModuleAccessSerializer(source='module_accesses', many=True, required=False)
+    full_name = serializers.SerializerMethodField()
     
     class Meta:
         model = CustomUser
-        fields = ('id', 'username', 'first_name', 'last_name', 'role', 'phone', 'photo', 'language', 'password', 'permissions', 'is_active', 'is_system_active')
+        fields = ('id', 'username', 'first_name', 'last_name', 'full_name', 'role', 'phone', 'photo', 'language', 'password', 'permissions', 'is_active', 'is_system_active')
+
+    def get_full_name(self, obj):
+        if obj.role == 'student' and hasattr(obj, 'student_profile'):
+            return obj.student_profile.full_name
+        name = f"{obj.first_name} {obj.last_name}".strip()
+        return name if name else obj.username
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)

@@ -60,7 +60,90 @@ class TestViewSet(viewsets.ModelViewSet):
              # Created by them OR Subject assigned to them
              return Test.objects.filter(Q(created_by=user) | Q(subject__teacher=user)).distinct()
              
-        return Test.objects.all()
+        queryset = Test.objects.all()
+
+        # Filter by Archive Status
+        # Default: Show only NON-archived
+        # If param ?archived=true: Show ONLY archived
+        show_archived = self.request.query_params.get('archived') == 'true'
+        if show_archived:
+            queryset = queryset.filter(is_archived=True)
+        else:
+            queryset = queryset.filter(is_archived=False)
+
+        if user.role == 'student':
+            # Check if profile exists to avoid 500 error if data is inconsistent
+            if not hasattr(user, 'student_profile'):
+                return Test.objects.none()
+                
+            # Active tests assigned to their group
+            # Students generally don't see archived tests unless specific logic requires it,
+            # but usually archived tests are hidden from students anyway by nature of being "old".
+            # If we strictly want to hide archived from students even if they request it?
+            # Let's keep the filter above.
+            
+            return queryset.filter(groups=user.student_profile.group, status='active')
+            
+        if user.role == 'teacher':
+             queryset = queryset.filter(Q(created_by=user) | Q(subject__teacher=user)).distinct()
+
+        # Dynamic Filters (Subject & Group & Direction)
+        subject_id = self.request.query_params.get('subject')
+        group_id = self.request.query_params.get('group')
+        direction = self.request.query_params.get('direction')
+
+        if subject_id:
+            queryset = queryset.filter(subject_id=subject_id)
+        
+        if group_id:
+            queryset = queryset.filter(groups__id=group_id)
+
+        if direction:
+             queryset = queryset.filter(groups__direction=direction)
+             
+        return queryset
+
+    def perform_create(self, serializer):
+        instance = serializer.save(created_by=self.request.user)
+        self._log_action('create', instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Try to identify changed fields from request data (approximate)
+        changed_fields = [k for k in self.request.data.keys() if k not in ['id', 'csrfmiddlewaretoken']]
+        extra = f"O'zgarganlar: {', '.join(changed_fields)}" if changed_fields else "Tahrirlandi"
+        self._log_action('update', instance, extra_details=extra)
+
+    def perform_destroy(self, instance):
+        self._log_action('delete', instance)
+        instance.delete()
+
+    def _log_action(self, action_type, instance, extra_details=None):
+        from apps.logs.models import SystemLog
+        
+        action_map = {
+            'create': "Test yaratildi",
+            'update': "Test tahrirlandi",
+            'delete': "Test o'chirildi",
+            'guruh_biriktirish': "Guruhlar o'zgartirildi",
+            'savollar_import': "Savollar import qilindi"
+        }
+        
+        details = f"Test: {instance.title} (ID: {instance.id})"
+        if action_type == 'delete':
+            details = f"Test: {instance.title} (ID: {instance.id})"
+            
+        if extra_details:
+            details += f". {extra_details}"
+            
+        ip = self.request.META.get('REMOTE_ADDR')
+        
+        SystemLog.objects.create(
+            user=self.request.user,
+            action=action_map.get(action_type, action_type),
+            details=details,
+            ip_address=ip
+        )
 
     @decorators.action(detail=True, methods=['post'], url_path='update-groups')
     def update_groups(self, request, pk=None):
@@ -87,6 +170,10 @@ class TestViewSet(viewsets.ModelViewSet):
         for gid in to_create:
             new_assignments.append(TestAssignment(test=test, group_id=gid))
         TestAssignment.objects.bulk_create(new_assignments)
+        
+        # Log details
+        log_detail = f"Qo'shildi: {len(to_create)} ta, O'chirildi: {len(to_delete)} ta"
+        self._log_action('guruh_biriktirish', test, extra_details=log_detail)
         
         return Response({
             'status': 'success',
@@ -120,6 +207,10 @@ class TestViewSet(viewsets.ModelViewSet):
                 if created:
                     assigned_count += 1
             
+            # Log
+            if assigned_count > 0:
+                 self._log_action('guruh_biriktirish', test)
+            
             return Response({
                 'status': 'success', 
                 'message': f"Test {assigned_count} ta yangi guruhga biriktirildi. Jami: {groups.count()} ta guruh tanlangan."
@@ -143,6 +234,9 @@ class TestViewSet(viewsets.ModelViewSet):
                 questions.append(Question(test=test, **q_data))
             
             Question.objects.bulk_create(questions)
+            
+            self._log_action('savollar_import', test)
+            
             return Response({'status': 'success', 'count': len(questions)})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -164,6 +258,22 @@ class TestViewSet(viewsets.ModelViewSet):
         request.user.save()
         
         return Response({'status': 'saved'})
+
+    @decorators.action(detail=True, methods=['post'], url_path='archive')
+    def archive_test(self, request, pk=None):
+        test = self.get_object()
+        test.is_archived = True
+        test.save()
+        self._log_action('update', test, extra_details="Arxivlandi")
+        return Response({'status': 'success', 'message': 'Test arxivlandi'})
+
+    @decorators.action(detail=True, methods=['post'], url_path='unarchive')
+    def unarchive_test(self, request, pk=None):
+        test = self.get_object()
+        test.is_archived = False
+        test.save()
+        self._log_action('update', test, extra_details="Arxivdan chiqarildi")
+        return Response({'status': 'success', 'message': 'Test arxivdan chiqarildi'})
 
     @decorators.action(detail=True, methods=['get'], url_path='start')
 
@@ -317,24 +427,9 @@ class TestViewSet(viewsets.ModelViewSet):
         return Response({
             'status': status_val,
             'score': score,
-            'percentage': percentage,
-            'max_score': MAX_SCORE_FIXED
-        })
-        result.percentage = round((score / MAX_SCORE_FIXED) * 100)
-        is_passed = score >= PASSING_SCORE_FIXED
-        result.status = 'passed' if is_passed else 'failed'
-        result.save()
-        
-        # Custom Message
-        message = "Tabriklaymiz, siz testdan o'tdingiz!" if is_passed else "Afsuski, siz testdan o'ta olmadingiz."
-        
-        return Response({
-            'status': 'success',
-            'score': score,
+            'percentage': round(percentage, 1),
             'max_score': MAX_SCORE_FIXED,
-            'percentage': result.percentage,
-            'passed': is_passed,
-            'message': message
+            'message': "Tabriklaymiz, siz testdan o'tdingiz!" if status_val == 'passed' else "Afsuski, siz testdan o'ta olmadingiz."
         })
 
     @decorators.action(detail=False, methods=['get'], url_path='sample-questions')
@@ -388,3 +483,6 @@ def test_list_view(request):
 
 def edit_test_view(request, test_id):
     return render(request, 'tests/edit_test.html', {'test_id': test_id})
+
+def archived_tests_view(request):
+    return render(request, 'crud_list.html', {'page': 'archived_tests'})

@@ -40,11 +40,46 @@ class StudentViewSet(viewsets.ModelViewSet):
             
         return queryset
 
-    def update(self, request, *args, **kwargs):
-        # Custom update to handle password or specific logic if needed, 
-        # but mostly relying on serializer. 
-        # Removing debug logging.
-        return super().update(request, *args, **kwargs)
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._log_action('create', instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        changed_fields = [k for k in self.request.data.keys() if k not in ['id', 'csrfmiddlewaretoken']]
+        extra = f"O'zgarganlar: {', '.join(changed_fields)}" if changed_fields else "Tahrirlandi"
+        self._log_action('update', instance, extra_details=extra)
+
+    def perform_destroy(self, instance):
+        self._log_action('delete', instance)
+        instance.delete()
+
+    def _log_action(self, action_type, instance=None, extra_details=None):
+        from apps.logs.models import SystemLog
+        
+        action_map = {
+            'create': "Talaba yaratildi",
+            'update': "Talaba tahrirlandi",
+            'delete': "Talaba o'chirildi",
+            'import': "Talabalar import qilindi",
+            'bulk_update': "Ommaviy o'zgartirish"
+        }
+        
+        details = ""
+        if instance:
+            details = f"Talaba: {instance.full_name} (ID: {instance.student_id})"
+            
+        if extra_details:
+             details = f"{details}. {extra_details}" if details else extra_details
+            
+        ip = self.request.META.get('REMOTE_ADDR')
+        
+        SystemLog.objects.create(
+            user=self.request.user,
+            action=action_map.get(action_type, action_type),
+            details=details,
+            ip_address=ip
+        )
 
     @decorators.action(detail=False, methods=['post'])
     def bulk_action(self, request):
@@ -64,14 +99,17 @@ class StudentViewSet(viewsets.ModelViewSet):
              if user.role != 'admin' and (not user.permissions or not any(p.module == 'students' and p.can_delete for p in user.permissions)):
                  return Response({'error': 'O\'chirish uchun huquq yo\'q'}, status=403)
              queryset.delete()
+             self._log_action('bulk_update', extra_details=f"{len(ids)} ta talaba o'chirildi")
              return Response({'status': 'deleted', 'count': len(ids)})
              
         elif action == 'activate':
             queryset.update(is_system_active=True)
+            self._log_action('bulk_update', extra_details=f"{len(ids)} ta talaba faollashtirildi")
             return Response({'status': 'activated', 'count': len(ids)})
             
         elif action == 'deactivate':
             queryset.update(is_system_active=False)
+            self._log_action('bulk_update', extra_details=f"{len(ids)} ta talaba nofaol qilindi")
             return Response({'status': 'deactivated', 'count': len(ids)})
             
         return Response({'error': 'Noto\'g\'ri amal'}, status=400)
@@ -84,6 +122,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         try:
             from .excel_import import import_students_from_excel
             count = import_students_from_excel(file)
+            self._log_action('import', extra_details=f"{count} ta talaba yuklandi")
             return Response({'status': 'success', 'count': count})
         except Exception as e:
             import traceback

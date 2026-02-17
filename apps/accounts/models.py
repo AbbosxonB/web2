@@ -32,6 +32,7 @@ class ModuleAccess(models.Model):
         ('groups', 'Guruhlar'),
         ('students', 'Talabalar'),
         ('results', 'Natijalar'),
+        ('vedmost', 'Vedmost'),
         ('directions', 'Yo\'nalishlar'),
         ('subjects', 'Fanlar'),
         ('tests', 'Testlar'),

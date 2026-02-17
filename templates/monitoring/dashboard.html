@@ -421,13 +421,22 @@
 
             liveSession: true,
             liveStudents: [],
+            userRole: '{{ user.role }}',
 
             init() {
+                // Only block monitoring for students. Admins, Deans, Teachers can see stats.
+                if (this.userRole === 'student') {
+                    this.isAuthorized = false;
+                    console.log("Monitoring disabled for students");
+                    return;
+                }
+
                 this.fetchData();
                 this.fetchGlobalSettings();
                 this.fetchLiveFeed();
 
                 this.timer = setInterval(() => {
+                    if (!this.isAuthorized) return;
                     this.fetchData();
                     if (this.showOnlineModal) this.fetchOnlineUsers(true);
                     if (this.liveSession) this.fetchLiveFeed();
@@ -435,16 +444,21 @@
             },
 
             async fetchLiveFeed() {
+                if (!this.isAuthorized) return;
                 try {
                     const token = localStorage.getItem('access_token');
                     const res = await axios.get('/api/monitoring/live/', {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     this.liveStudents = res.data;
-                } catch (e) { console.error(e); }
+                } catch (e) {
+                    console.error(e);
+                    if (e.response && e.response.status === 403) this.isAuthorized = false;
+                }
             },
 
             async fetchGlobalSettings() {
+                if (!this.isAuthorized) return;
                 try {
                     const token = localStorage.getItem('access_token');
                     const res = await axios.get('/api/monitoring/settings/', {
@@ -453,14 +467,18 @@
                     this.globalCameraRequired = res.data.camera_required_globally;
                 } catch (e) {
                     console.error("Error fetching settings", e);
+                    if (e.response && e.response.status === 403) this.isAuthorized = false;
                 }
             },
 
             async toggleGlobalCamera() {
+                if (this.userRole === 'student') {
+                    // Revert visually since students can't change this
+                    setTimeout(() => { this.globalCameraRequired = !this.globalCameraRequired; }, 50);
+                    return;
+                }
+
                 try {
-                    const token = localStorage.getItem('access_token');
-                    // Value is already updated in model by x-model, simpler just send the new state
-                    // logic: toggleGlobalCamera called on @change, so this.globalCameraRequired is already the NEW value
 
                     await axios.post('/api/monitoring/settings/', {
                         key: 'camera_required_globally',
@@ -479,7 +497,11 @@
                 }
             },
 
+            isAuthorized: true,
+
             async fetchData() {
+                if (!this.isAuthorized) return;
+
                 try {
                     const token = localStorage.getItem('access_token');
                     const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -500,8 +522,14 @@
 
                 } catch (error) {
                     console.error("Error fetching monitoring data:", error);
-                    if (error.response && error.response.status === 401) {
-                        window.location.href = '/login/';
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            window.location.href = '/login/';
+                        } else if (error.response.status === 403) {
+                            // Forbidden - Stop polling
+                            this.isAuthorized = false;
+                            console.warn("Monitoring access denied. Stopping poll.");
+                        }
                     }
                 }
             },

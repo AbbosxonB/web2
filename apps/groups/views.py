@@ -19,6 +19,47 @@ class GroupViewSet(viewsets.ModelViewSet):
     module_name = 'groups'
     pagination_class = GroupPagination
     filter_backends = [filters.SearchFilter]
+    ordering = ['name']
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._log_action('create', instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Detect changes roughly
+        changed_fields = [k for k in self.request.data.keys() if k not in ['id', 'csrfmiddlewaretoken']]
+        extra = f"O'zgarganlar: {', '.join(changed_fields)}" if changed_fields else "Tahrirlandi"
+        self._log_action('update', instance, extra_details=extra)
+
+    def perform_destroy(self, instance):
+        self._log_action('delete', instance)
+        instance.delete()
+
+    def _log_action(self, action_type, instance, extra_details=None):
+        from apps.logs.models import SystemLog
+        
+        action_map = {
+            'create': "Guruh yaratildi",
+            'update': "Guruh tahrirlandi",
+            'delete': "Guruh o'chirildi"
+        }
+        
+        details = f"Guruh: {instance.name} (ID: {instance.id})"
+        if action_type == 'delete':
+            details = f"Guruh: {instance.name} (ID: {instance.id})"
+            
+        if extra_details:
+            details += f". {extra_details}"
+            
+        ip = self.request.META.get('REMOTE_ADDR')
+        
+        SystemLog.objects.create(
+            user=self.request.user,
+            action=action_map.get(action_type, action_type),
+            details=details,
+            ip_address=ip
+        )
     search_fields = ['name', 'direction']
 
     def get_queryset(self):

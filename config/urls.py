@@ -6,16 +6,14 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-
-from apps.accounts.views import login_view, dashboard_view, ProfileView, EmployeeViewSet, employee_list_view
-from apps.students.views import student_list_view, StudentViewSet
-from apps.groups.views import group_list_view, GroupViewSet
+from apps.results.views import result_list_view, TestResultViewSet
 from apps.accounts.views import login_view, dashboard_view, ProfileView, EmployeeViewSet, employee_list_view
 from apps.students.views import student_list_view, StudentViewSet
 from apps.groups.views import group_list_view, GroupViewSet
 from apps.subjects.views import subject_list_view, SubjectViewSet
-from apps.tests.views import test_list_view, TestViewSet, take_test_view, edit_test_view, QuestionViewSet
-from apps.results.views import result_list_view, TestResultViewSet
+from apps.tests.views import test_list_view, TestViewSet, take_test_view, edit_test_view, QuestionViewSet, archived_tests_view
+from apps.results.views import result_list_view, TestResultViewSet, JamlanmaQaytnomaView
+
 from apps.directions.views import direction_list_view, DirectionViewSet
 from apps.accounts.views import CustomTokenObtainPairView
 from apps.monitoring.views import monitoring_page_view
@@ -36,7 +34,32 @@ router.register(r'tests', TestViewSet)
 router.register(r'questions', QuestionViewSet)
 router.register(r'results', TestResultViewSet)
 
+from django.views.generic import TemplateView
+from django.http import HttpResponse
+from django.conf import settings
+import os
+
+def serve_sw(request):
+    path = os.path.join(settings.BASE_DIR, 'templates', 'sw.js')
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HttpResponse(content, content_type='application/javascript')
+    except FileNotFoundError:
+        return HttpResponse("SW File Not Found", status=404)
+
+def serve_manifest(request):
+    path = os.path.join(settings.BASE_DIR, 'templates', 'manifest.json')
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HttpResponse(content, content_type='application/json')
+    except FileNotFoundError:
+        return HttpResponse("Manifest File Not Found", status=404)
+
 urlpatterns = [
+    path('sw.js', serve_sw, name='sw.js'),
+    path('manifest.json', serve_manifest, name='manifest.json'),
     path('tests/take/<int:test_id>/', take_test_view, name='take_test_page'),
     path('take/<int:test_id>/', take_test_view, name='take_test_shortcut'),
     path('admin/', admin.site.urls),
@@ -62,10 +85,14 @@ urlpatterns = [
     path('subjects/', subject_list_view, name='subjects_page'),
     path('directions/', direction_list_view, name='directions_page'),
     path('tests/', test_list_view, name='tests_page'),
+    path('tests/archive/', archived_tests_view, name='archived_tests_page'),
     path('tests/edit/<int:test_id>/', edit_test_view, name='edit_test_page'),
+
 
     path('results/', result_list_view, name='results_page'),
     path('results/', result_list_view, name='results_page'),
+
+    path('jamlanma-qaytnoma/', JamlanmaQaytnomaView.as_view(), name='jamlanma_qaytnoma'),
     path('monitoring/', monitoring_page_view, name='monitoring_page'),
     path('logs/', log_system_view, name='logs_page'),
 

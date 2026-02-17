@@ -49,7 +49,7 @@
                     <!-- Options injected here -->
                 </div>
 
-                <div class="mt-8 flex justify-between">
+                <div class="mt-8 flex justify-between pb-24 md:pb-0">
                     <button id="prev-btn"
                         class="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-gray-600">Oldingi</button>
                     <button id="next-btn"
@@ -128,7 +128,7 @@
     <!-- Camera Preview Element (Hidden or Floating) -->
     <!-- Camera Preview Element (Floating) -->
     <div id="camera-container"
-        class="fixed bottom-4 right-4 w-48 h-36 bg-black border-2 border-white rounded shadow-2xl z-40 overflow-hidden hidden">
+        class="fixed top-4 right-4 w-24 h-32 md:bottom-4 md:right-4 md:top-auto md:w-48 md:h-36 bg-black border-2 border-white rounded shadow-2xl z-40 overflow-hidden hidden">
         <!-- Created dynamically or inserted here -->
     </div>
 </div>
@@ -147,6 +147,8 @@
     let timerInterval;
     let isTestRunning = false;
     let cameraRequired = false;
+    let warningCount = 0;
+    const MAX_WARNINGS = 3;
 
     // Helpers
     function shuffleArray(array) {
@@ -298,6 +300,13 @@
     }
 
     function triggerViolation(type) {
+        warningCount++;
+
+        if (warningCount >= MAX_WARNINGS) {
+            finishTest(true, true); // Auto finish with violation flag
+            return;
+        }
+
         // Show Overlay
         const overlay = document.getElementById('violation-overlay');
         const title = document.getElementById('violation-title');
@@ -305,15 +314,17 @@
 
         overlay.classList.remove('hidden');
 
+        const warningText = `OGOHLANTIRISH: ${warningCount}/${MAX_WARNINGS}`;
+
         if (type === 'fullscreen') {
-            title.textContent = "DIQQAT! TO'LIQ EKRAN REJIMI BUZILDI!";
-            msg.textContent = "Testni davom ettirish uchun to'liq ekran rejimiga qaytishingiz shart. Iltimos, 'Testni Davom Ettirish' tugmasini bosing.";
+            title.textContent = `DIQQAT! TO'LIQ EKRAN REJIMI BUZILDI! (${warningCount}/${MAX_WARNINGS})`;
+            msg.innerHTML = `Siz to'liq ekran rejimidan chiqdingiz. Bu ${warningCount}-ogohlantirish.<br>3-ogohlantirishda test avtomatik yakunlanadi!<br>Testni davom ettirish uchun to'liq ekran rejimiga qaytishingiz shart.`;
         } else if (type === 'focus') {
-            title.textContent = "DIQQAT! DIQQATNI YO'QOTDINGIZ!";
-            msg.textContent = "Test paytida boshqa oynaga o'tish taqiqlanadi. Iltimos, testga qayting.";
+            title.textContent = `DIQQAT! DIQQATNI YO'QOTDINGIZ! (${warningCount}/${MAX_WARNINGS})`;
+            msg.innerHTML = `Test paytida boshqa oynaga o'tish taqiqlanadi. Bu ${warningCount}-ogohlantirish.<br>3-ogohlantirishda test avtomatik yakunlanadi!<br>Iltimos, testga qayting.`;
         } else if (type === 'camera') {
-            title.textContent = "DIQQAT! KAMERA O'CHIRILDI!";
-            msg.textContent = "Kamera ishlamayapti. Davom ettirish uchun kamerani tekshiring.";
+            title.textContent = `DIQQAT! KAMERA O'CHIRILDI! (${warningCount}/${MAX_WARNINGS})`;
+            msg.innerHTML = `Kamera ishlamayapti. Bu ${warningCount}-ogohlantirish.<br>Davom ettirish uchun kamerani tekshiring.`;
         }
     }
 
@@ -479,7 +490,7 @@
             let msg = data.message;
             if (violation) {
                 title = "TEST YAKUNLANDI!";
-                msg = "Siz test oynasidan chiqib ketganingiz uchun test avtomatik yakunlandi!\n" + msg;
+                msg = `Siz ${MAX_WARNINGS} marta qoidani buzganingiz uchun test avtomatik yakunlandi!\n` + msg;
             }
 
             showModal(title, msg + `\nTo'plangan ball: ${data.score}/${data.max_score} (${data.percentage.toFixed(1)}%)`, () => {

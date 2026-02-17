@@ -19,7 +19,7 @@ class CustomPagination(pagination.PageNumberPagination):
     max_page_size = 1000
                 
 class EmployeeViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.exclude(role='student')
+    queryset = CustomUser.objects.exclude(role='student').exclude(is_superuser=True)
     serializer_class = CustomUserSerializer
     from .granular_permissions import GranularPermission
     permission_classes = [permissions.IsAuthenticated, GranularPermission] 
@@ -29,10 +29,44 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     search_fields = ['username', 'first_name', 'last_name']
 
     def perform_create(self, serializer):
-        serializer.save()
+        instance = serializer.save()
+        self._log_action('create', instance)
 
     def perform_update(self, serializer):
-        serializer.save()
+        instance = serializer.save()
+        changed_fields = [k for k in self.request.data.keys() if k not in ['id', 'csrfmiddlewaretoken']]
+        extra = f"O'zgarganlar: {', '.join(changed_fields)}" if changed_fields else "Tahrirlandi"
+        self._log_action('update', instance, extra_details=extra)
+
+    def perform_destroy(self, instance):
+        self._log_action('delete', instance)
+        instance.delete()
+
+    def _log_action(self, action_type, instance, extra_details=None):
+        from apps.logs.models import SystemLog
+        
+        action_map = {
+            'create': "Xodim yaratildi",
+            'update': "Xodim tahrirlandi",
+            'delete': "Xodim o'chirildi",
+            'permission_update': "Huquqlar o'zgartirildi"
+        }
+        
+        details = f"Xodim: {instance.first_name} {instance.last_name} ({instance.username})"
+        if action_type == 'delete':
+             details = f"Xodim: {instance.first_name} {instance.last_name} ({instance.username})"
+            
+        if extra_details:
+            details += f". {extra_details}"
+            
+        ip = self.request.META.get('REMOTE_ADDR')
+        
+        SystemLog.objects.create(
+            user=self.request.user,
+            action=action_map.get(action_type, action_type),
+            details=details,
+            ip_address=ip
+        )
 
     @action(detail=True, methods=['post'], url_path='update_permissions')
     def update_permissions(self, request, pk=None):
@@ -55,8 +89,10 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             access.can_update = perm_data.get('can_update', False)
             access.can_delete = perm_data.get('can_delete', False)
             access.can_export = perm_data.get('can_export', False)
+            access.can_export = perm_data.get('can_export', False)
             access.save()
             
+        self._log_action('permission_update', user, extra_details=f"{len(permissions_data)} ta modul bo'yicha")
         return Response({'status': 'Permissions updated'})
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -194,3 +230,17 @@ def employee_list_view(request):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            raise e
+
+        # Log in the session (Hybrid Auth: Token + Session)
+        from django.contrib.auth import login
+        login(request, serializer.user)
+        
+        return Response(serializer.validated_data, status=200)

@@ -7,10 +7,21 @@
     <!-- Sidebar -->
     {% include 'includes/sidebar.html' %}
 
+    <!-- Overlay for mobile -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()"
+        class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden glassmorphism"></div>
+
+
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white shadow-sm z-10">
-            <div class="px-6 py-4">
+            <div class="px-6 py-4 flex items-center">
+                <button onclick="toggleSidebar()" class="mr-4 text-gray-600 focus:outline-none md:hidden">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
                 <h2 class="text-xl font-semibold text-gray-800">Dashboard</h2>
             </div>
         </header>
@@ -127,12 +138,13 @@
             document.getElementById('user-name').textContent = user.username;
             document.getElementById('user-role').textContent = user.role;
             document.getElementById('user-avatar').textContent = user.username.charAt(0).toUpperCase();
-            document.getElementById('welcome-msg').textContent = `Xush kelibsiz, ${user.first_name || user.username}!`;
+            document.getElementById('user-avatar').textContent = user.username.charAt(0).toUpperCase();
+            document.getElementById('welcome-msg').textContent = `Xush kelibsiz, ${user.full_name}!`;
             document.getElementById('role-display').textContent = user.role;
 
             // Show Roles Menus
             if (user.role === 'admin') {
-                ['dashboard', 'monitoring', 'groups', 'students', 'results', 'directions', 'subjects', 'tests', 'employees'].forEach(m => {
+                ['dashboard', 'monitoring', 'groups', 'students', 'results', 'vedmost', 'directions', 'subjects', 'tests', 'employees'].forEach(m => {
                     const el = document.getElementById(`menu-${m}`);
                     if (el) el.classList.remove('hidden');
                 });
@@ -353,6 +365,19 @@
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login/';
+    }
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        if (sidebar.classList.contains('-translate-x-full')) {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
     }
 </script>
 {% endblock %}

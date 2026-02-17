@@ -26,14 +26,28 @@ MANIFEST
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db_backup*.sqlite3
+backup_*.json
+migration_data.json
 media
+staticfiles/
 
 # Virtual Environment
 venv/
 env/
 ENV/
 .env
+.env.local
+.env.production
 
 # IDE
 .vscode/
 .idea/
+
+# Migration scripts (temporary)
+backup_sqlite*.py
+export_sqlite*.py
+load_migration*.py
+load_postgresql.py
+compare_databases.py
+create_admin.py

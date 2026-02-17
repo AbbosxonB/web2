@@ -6,5 +6,6 @@ router = DefaultRouter()
 router.register(r'', TestResultViewSet)
 
 urlpatterns = [
+
     path('', include(router.urls)),
 ]

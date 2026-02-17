@@ -7,10 +7,22 @@
     <!-- Sidebar -->
     {% include 'includes/sidebar.html' %}
 
+    <!-- Overlay for mobile -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()"
+        class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden glassmorphism"></div>
+
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <header class="bg-white shadow-sm z-10 px-6 py-4 flex justify-between items-center">
-            <h2 class="text-xl font-semibold text-gray-800" id="page-title">Yuklanmoqda...</h2>
+            <div class="flex items-center">
+                <button onclick="toggleSidebar()" class="mr-4 text-gray-600 focus:outline-none md:hidden">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <h2 class="text-xl font-semibold text-gray-800" id="page-title">Yuklanmoqda...</h2>
+            </div>
             <div class="flex space-x-4">
                 <input type="text" id="searchInput" placeholder="Qidirish..."
                     class="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -47,6 +59,20 @@
                 </button>
                 {% endif %}
 
+                {% if page == 'tests' %}
+                <button onclick="executeBulkAction('archive')"
+                    class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition shadow-sm">
+                    🗄️ Arxivlash
+                </button>
+                {% endif %}
+
+                {% if page == 'archived_tests' %}
+                <button onclick="executeBulkAction('unarchive')"
+                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition shadow-sm">
+                    ♻️ Arxivdan chiqarish
+                </button>
+                {% endif %}
+
                 {% if page == 'students' or page == 'groups' %}
                 <button onclick="executeBulkAction('activate')"
                     class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition shadow-sm">
@@ -58,10 +84,12 @@
                 </button>
                 {% endif %}
 
+
                 <button onclick="executeBulkAction('delete')"
                     class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition shadow-sm">
                     🗑️ O'chirish
                 </button>
+
             </div>
         </div>
 
@@ -357,6 +385,7 @@
                         { val: 'groups', text: 'Guruhlar' },
                         { val: 'students', text: 'Talabalar' },
                         { val: 'results', text: 'Natijalar' },
+                        { val: 'vedmost', text: 'Vedmost' },
                         { val: 'directions', text: 'Yo\'nalishlar' },
                         { val: 'subjects', text: 'Fanlar' },
                         { val: 'tests', text: 'Testlar' },
@@ -534,10 +563,32 @@
                 </td>
             `
         },
+        'archived_tests': {
+            title: 'Arxivlangan Testlar',
+            api: '/api/tests/?archived=true',
+            columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'Nomi', 'Fan', 'Boshlanish', 'Tugash', 'Amallar'],
+            fields: [], // Read-only mostly
+            render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                    <input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">
+                </td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold text-gray-500">${item.title}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-500">${item.subject_details ? item.subject_details.name : item.subject}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-500">${new Date(item.start_date).toLocaleString()}</td>
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-500">${new Date(item.end_date).toLocaleString()}</td>
+                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm flex items-center">
+                    <button onclick="unarchiveItem(${item.id})" class="text-green-600 hover:text-green-900 mr-2 flex items-center shadow-sm border px-2 py-1 rounded" title="Arxivdan chiqarish">
+                        ♻️ Tiklash
+                    </button>
+                    ${(currentUser && currentUser.role === 'admin') ?
+                    `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900" title="O'chirish">🗑️</button>` : ''}
+                </td>
+    `
+        },
         'tests': {
             title: 'Testlar',
             api: '/api/tests/',
-            columns: ['Nomi', 'Fan', 'Boshlanish', 'Tugash', 'Amallar'],
+            columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'Nomi', 'Fan', 'Boshlanish', 'Tugash', 'Amallar'],
             fields: [
                 { name: 'title', label: 'Test Nomi', type: 'text' },
                 { name: 'subject', label: 'Fan (ID)', type: 'number' },
@@ -547,6 +598,9 @@
                 { name: 'duration', label: 'Vaqt (daqiqa)', type: 'number' }
             ],
             render: (item) => `
+                <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                    <input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">
+                </td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold">${item.title}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.subject_details ? item.subject_details.name : item.subject}</td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${new Date(item.start_date).toLocaleString()}</td>
@@ -557,9 +611,10 @@
                     </a>
                     <button onclick="importTestQuestions(${item.id})" class="text-green-600 hover:text-green-900 mr-2" title="Savollarni import qilish">📥</button>
                     <a href="/tests/edit/${item.id}/" class="text-blue-600 hover:text-blue-900 mr-2" title="Tahrirlash">✏️</a>
+                    <button onclick="archiveItem(${item.id})" class="text-gray-600 hover:text-gray-900 mr-2" title="Arxivlash">🗄️</button>
                     <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900" title="O'chirish">🗑️</button>
                 </td>
-            `
+    `
         },
         'results': {
             title: 'Natijalar',
@@ -568,7 +623,7 @@
             columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'ID', 'Talaba', 'Guruh', 'Test', 'Ball', 'Foiz', 'Tugagan vaqti', 'Sarflangan vaqt', 'Holat', 'Amallar'],
             render: (item) => `
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
-                    <input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">
+                    ${(currentUser && currentUser.role === 'student') ? '' : `<input type="checkbox" class="row-checkbox w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" value="${item.id}" onchange="updateToolbar()">`}
                 </td>
                 <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center font-bold text-gray-500">
                     #${item.id}
@@ -600,7 +655,7 @@
                     
                     ${(!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'dean')) ? '<span class="text-gray-400">-</span>' : ''}
                  </td>
-            `
+    `
         },
         'log_system': {
             title: 'Tizim Loglari',
@@ -629,6 +684,36 @@
         if (!config) { alert('Page configuration not found'); return; }
 
         document.getElementById('page-title').textContent = config.title;
+
+        // Archive Link Button
+        if (PAGE === 'tests') {
+            const headerActions = document.querySelector('header .flex.space-x-4');
+            const archiveBtn = document.createElement('a');
+            archiveBtn.href = '/tests/archive/';
+            archiveBtn.className = 'bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600 transition flex items-center';
+            archiveBtn.innerHTML = '🗄️ Arxiv';
+            archiveBtn.style.marginRight = '10px';
+            // Insert before create button
+            const createBtn = document.getElementById('create-btn');
+            headerActions.insertBefore(archiveBtn, createBtn);
+        }
+
+        if (PAGE === 'archived_tests') {
+            // Hide Create Button
+            const createBtn = document.getElementById('create-btn');
+            if (createBtn) createBtn.classList.add('hidden');
+
+            // Add Back Button
+            const headerActions = document.querySelector('header .flex.space-x-4');
+            const backBtn = document.createElement('a');
+            backBtn.href = '/tests/';
+            backBtn.className = 'bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 transition flex items-center';
+            backBtn.innerHTML = '⬅️ Testlarga qaytish';
+            backBtn.style.marginRight = '10px';
+
+            if (createBtn) headerActions.insertBefore(backBtn, createBtn);
+            else headerActions.appendChild(backBtn);
+        }
 
 
 
@@ -662,7 +747,7 @@
             dirSelect.innerHTML = '<option value="">Yo\'nalish bo\'yicha</option>';
 
             // Fetch directions
-            axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+            axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token} ` } })
                 .then(res => {
                     const directions = res.data.results || res.data;
                     directions.forEach(d => {
@@ -724,7 +809,7 @@
                     filtered.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
             };
 
-            axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+            axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token} ` } })
                 .then(res => {
                     // Handle paginated response
                     allFilterGroups = res.data.results || res.data;
@@ -746,13 +831,98 @@
 
 
 
+
+        if (PAGE === 'tests' || PAGE === 'archived_tests') {
+            filterContainer.classList.remove('hidden');
+
+            // Direction Filter
+            const dirSelect = document.createElement('select');
+            dirSelect.id = 'filter-direction';
+            dirSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            dirSelect.innerHTML = '<option value="">Yo\'nalish bo\'yicha</option>';
+            filterContainer.appendChild(dirSelect);
+
+            // Subject Filter
+            const subjectSelect = document.createElement('select');
+            subjectSelect.id = 'filter-subject';
+            subjectSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            subjectSelect.innerHTML = '<option value="">Fan bo\'yicha</option>';
+            subjectSelect.onchange = () => loadData(token);
+            filterContainer.appendChild(subjectSelect);
+
+            // Group Filter
+            const groupSelect = document.createElement('select');
+            groupSelect.id = 'filter-group';
+            groupSelect.className = 'border rounded px-3 py-1 text-sm mr-2';
+            groupSelect.innerHTML = '<option value="">Biriktirilgan Guruh bo\'yicha</option>';
+            groupSelect.onchange = () => loadData(token);
+            filterContainer.appendChild(groupSelect);
+
+            let allGroups = [];
+
+            // Fetch Directions
+            axios.get('/api/directions/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => {
+                    const directions = res.data.results || res.data;
+                    directions.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.name; // Filter by Name 
+                        opt.textContent = d.name;
+                        dirSelect.appendChild(opt);
+                    });
+                }).catch(e => console.error(e));
+
+            dirSelect.onchange = () => {
+                const selectedDir = dirSelect.value;
+                // Filter group options
+                groupSelect.innerHTML = '<option value="">Biriktirilgan Guruh bo\'yicha</option>';
+
+                const filteredGroups = selectedDir
+                    ? allGroups.filter(g => g.direction === selectedDir || g.direction_name === selectedDir)
+                    : allGroups;
+
+                filteredGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    groupSelect.appendChild(opt);
+                });
+                loadData(token);
+            };
+
+            // Fetch Subjects
+            axios.get('/api/subjects/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => {
+                    const subjects = res.data.results || res.data;
+                    subjects.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.textContent = s.name;
+                        subjectSelect.appendChild(opt);
+                    });
+                }).catch(e => console.error(e));
+
+            // Fetch All Groups
+            axios.get('/api/groups/?page_size=1000', { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => {
+                    allGroups = res.data.results || res.data;
+                    // Initial populate
+                    allGroups.forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = g.id;
+                        opt.textContent = g.name;
+                        groupSelect.appendChild(opt);
+                    });
+                }).catch(e => console.error(e));
+        }
+
         // Setup Save
         document.getElementById('saveBtn').onclick = () => saveItem(token);
 
         // Initial Load
         try {
             // Fetch User Profile for Sidebar logic
-            const userRes = await axios.get('/api/accounts/profile/', { headers: { Authorization: `Bearer ${token}` } });
+            const userRes = await axios.get('/api/accounts/profile/', { headers: { Authorization: `Bearer ${token} ` } });
 
             const user = userRes.data;
             currentUser = user; // Set global user
@@ -808,7 +978,7 @@
                 testSelect.innerHTML = '<option value="">Test bo\'yicha</option>';
                 filterContainer.appendChild(testSelect);
 
-                axios.get('/api/tests/', { headers: { Authorization: `Bearer ${token}` } })
+                axios.get('/api/tests/', { headers: { Authorization: `Bearer ${token} ` } })
                     .then(res => {
                         const tests = res.data.results || res.data;
                         tests.forEach(t => {
@@ -932,99 +1102,101 @@
                 filterContainer.appendChild(endInp);
 
 
-                // 7. Export Buttons
-                const exportBtn = document.createElement('button');
-                exportBtn.textContent = 'Excelga Yuklash';
-                exportBtn.className = 'bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700';
-                exportBtn.onclick = async () => {
-                    const test = document.getElementById('filter-test').value;
-                    const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
-                    const statusVal = document.getElementById('filter-status').value;
-                    const search = document.getElementById('searchInput').value;
-                    const course = document.getElementById('filter-results-course').value;
-                    const edu = document.getElementById('filter-results-edu').value;
-                    const dir = document.getElementById('filter-results-dir').value;
-                    const start = document.getElementById('filter-start-date').value;
-                    const end = document.getElementById('filter-end-date').value;
+                // 7. Export Buttons (Admin only)
+                if (currentUser && currentUser.role !== 'student') {
+                    const exportBtn = document.createElement('button');
+                    exportBtn.textContent = 'Excelga Yuklash';
+                    exportBtn.className = 'bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700';
+                    exportBtn.onclick = async () => {
+                        const test = document.getElementById('filter-test').value;
+                        const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
+                        const statusVal = document.getElementById('filter-status').value;
+                        const search = document.getElementById('searchInput').value;
+                        const course = document.getElementById('filter-results-course').value;
+                        const edu = document.getElementById('filter-results-edu').value;
+                        const dir = document.getElementById('filter-results-dir').value;
+                        const start = document.getElementById('filter-start-date').value;
+                        const end = document.getElementById('filter-end-date').value;
 
-                    const url = `/api/results/export_excel/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}&course=${course}&education_form=${edu}&direction=${dir}&start_date=${start}&end_date=${end}`;
+                        const url = `/api/results/export_excel/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}&course=${course}&education_form=${edu}&direction=${dir}&start_date=${start}&end_date=${end}`;
 
-                    try {
-                        exportBtn.textContent = 'Yuklanmoqda...';
-                        exportBtn.disabled = true;
+                        try {
+                            exportBtn.textContent = 'Yuklanmoqda...';
+                            exportBtn.disabled = true;
 
-                        const response = await axios.get(url, {
-                            headers: { Authorization: `Bearer ${token}` },
-                            responseType: 'blob'
-                        });
+                            const response = await axios.get(url, {
+                                headers: { Authorization: `Bearer ${token}` },
+                                responseType: 'blob'
+                            });
 
-                        // Create download link
-                        const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
-                        const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.setAttribute('download', 'natijalar.xlsx');
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                    } catch (e) {
-                        console.error(e);
-                        alert('Yuklashda xatolik: ' + (e.response?.status === 401 ? 'Avtorizatsiya xatosi' : 'Noma\'lum xatolik'));
-                    } finally {
-                        exportBtn.textContent = 'Excelga Yuklash';
-                        exportBtn.disabled = false;
-                    }
-                };
-                filterContainer.appendChild(exportBtn);
+                            // Create download link
+                            const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                            const link = document.createElement('a');
+                            link.href = downloadUrl;
+                            link.setAttribute('download', 'natijalar.xlsx');
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                        } catch (e) {
+                            console.error(e);
+                            alert('Yuklashda xatolik: ' + (e.response?.status === 401 ? 'Avtorizatsiya xatosi' : 'Noma\'lum xatolik'));
+                        } finally {
+                            exportBtn.textContent = 'Excelga Yuklash';
+                            exportBtn.disabled = false;
+                        }
+                    };
+                    filterContainer.appendChild(exportBtn);
 
-                // 8. Export Vedmost (Docx) Button
-                const exportDocxBtn = document.createElement('button');
-                exportDocxBtn.textContent = 'Vedmost (Docx)';
-                exportDocxBtn.className = 'bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 ml-2';
-                exportDocxBtn.onclick = async () => {
-                    // Reuse filters
-                    const test = document.getElementById('filter-test').value;
-                    const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
-                    const statusVal = document.getElementById('filter-status').value;
-                    const search = document.getElementById('searchInput').value;
-                    const course = document.getElementById('filter-results-course').value;
-                    const edu = document.getElementById('filter-results-edu').value;
-                    const dir = document.getElementById('filter-results-dir').value;
-                    const start = document.getElementById('filter-start-date').value;
-                    const end = document.getElementById('filter-end-date').value;
+                    // 8. Export Vedmost (Docx) Button
+                    const exportDocxBtn = document.createElement('button');
+                    exportDocxBtn.textContent = 'Vedmost (Docx)';
+                    exportDocxBtn.className = 'bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 ml-2';
+                    exportDocxBtn.onclick = async () => {
+                        // Reuse filters
+                        const test = document.getElementById('filter-test').value;
+                        const group = document.getElementById('filter-group-results') ? document.getElementById('filter-group-results').value : '';
+                        const statusVal = document.getElementById('filter-status').value;
+                        const search = document.getElementById('searchInput').value;
+                        const course = document.getElementById('filter-results-course').value;
+                        const edu = document.getElementById('filter-results-edu').value;
+                        const dir = document.getElementById('filter-results-dir').value;
+                        const start = document.getElementById('filter-start-date').value;
+                        const end = document.getElementById('filter-end-date').value;
 
-                    const url = `/api/results/export_docx/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}&course=${course}&education_form=${edu}&direction=${dir}&start_date=${start}&end_date=${end}`;
+                        const url = `/api/results/export_docx/?test=${test}&student__group=${group}&status=${statusVal}&search=${search}&course=${course}&education_form=${edu}&direction=${dir}&start_date=${start}&end_date=${end}`;
 
-                    try {
-                        exportDocxBtn.textContent = 'Yuklanmoqda...';
-                        exportDocxBtn.disabled = true;
+                        try {
+                            exportDocxBtn.textContent = 'Yuklanmoqda...';
+                            exportDocxBtn.disabled = true;
 
-                        const response = await axios.get(url, {
-                            headers: { Authorization: `Bearer ${token}` },
-                            responseType: 'blob'
-                        });
+                            const response = await axios.get(url, {
+                                headers: { Authorization: `Bearer ${token}` },
+                                responseType: 'blob'
+                            });
 
-                        const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
-                        const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.setAttribute('download', 'vedmost.docx'); // Filename usually set by Content-Disposition but just in case
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                    } catch (e) {
-                        console.error(e);
-                        alert('Yuklashda xatolik: ' + (e.response?.data?.error || 'Noma\'lum xatolik'));
-                    } finally {
-                        exportDocxBtn.textContent = 'Vedmost (Docx)';
-                        exportDocxBtn.disabled = false;
-                    }
-                };
-                filterContainer.appendChild(exportDocxBtn);
+                            const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+                            const link = document.createElement('a');
+                            link.href = downloadUrl;
+                            link.setAttribute('download', 'natijalar_vedmost.docx');
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                        } catch (e) {
+                            console.error(e);
+                            alert('Yuklashda xatolik (Docx)');
+                        } finally {
+                            exportDocxBtn.textContent = 'Vedmost (Docx)';
+                            exportDocxBtn.disabled = false;
+                        }
+                    };
+                    filterContainer.appendChild(exportDocxBtn);
+                }
             }
 
             // Sidebar Logic based on Permissions
             if (user.role === 'admin') {
                 // Admin sees everything
-                ['dashboard', 'monitoring', 'groups', 'students', 'results', 'directions', 'subjects', 'tests', 'employees', 'log_system'].forEach(m => {
+                ['dashboard', 'monitoring', 'groups', 'students', 'results', 'vedmost', 'directions', 'subjects', 'tests', 'employees', 'log_system'].forEach(m => {
                     const el = document.getElementById(`menu-${m}`);
                     if (el) el.classList.remove('hidden');
                 });
@@ -1101,7 +1273,7 @@
             const params = { search };
 
             // Only send pagination params if page supports it (students, results, subjects, directions, employees, tests)
-            if (['students', 'results', 'subjects', 'directions', 'employees', 'tests'].includes(PAGE)) {
+            if (['students', 'results', 'subjects', 'directions', 'employees', 'tests', 'archived_tests'].includes(PAGE)) {
                 params.page = page;
                 params.page_size = pageSize;
             }
@@ -1112,10 +1284,13 @@
             const eduFilter = document.getElementById('filter-edu-form');
             const groupFilter = document.getElementById('filter-group');
 
+            const subjectFilter = document.getElementById('filter-subject');
+
             if (courseFilter && courseFilter.value) params.course = courseFilter.value;
             if (dirFilter && dirFilter.value) params.direction = dirFilter.value;
             if (eduFilter && eduFilter.value) params.education_form = eduFilter.value;
             if (groupFilter && groupFilter.value) params.group = groupFilter.value;
+            if (subjectFilter && subjectFilter.value) params.subject = subjectFilter.value;
 
             // Result Filters
             const testFilter = document.getElementById('filter-test');
@@ -1203,7 +1378,7 @@
     }
 
     function renderTable(data) {
-        document.getElementById('table-head').innerHTML = config.columns.map(c => {
+        document.getElementById('table-head').innerHTML = config.columns.map((c, index) => {
             // Check if column is sortable (Student F.I.SH)
             if (PAGE === 'students' && c === 'F.I.SH') {
                 let icon = '';
@@ -1211,6 +1386,12 @@
                 if (currentOrder === '-full_name') icon = ' 🔽';
                 return `<th onclick="toggleSort('full_name')" class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-200 select-none">${c}${icon}</th>`;
             }
+
+            // Hide Checkbox Header for Students in Results
+            if (PAGE === 'results' && index === 0 && currentUser && currentUser.role === 'student') {
+                return `<th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>`;
+            }
+
             return `<th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">${c}</th>`;
         }).join('');
 
@@ -1930,6 +2111,7 @@ ${token}`
         { val: 'groups', text: 'Guruhlar' },
         { val: 'students', text: 'Talabalar' },
         { val: 'results', text: 'Natijalar' },
+        { val: 'vedmost', text: 'Vedmost' },
         { val: 'directions', text: 'Yo\'nalishlar' },
         { val: 'subjects', text: 'Fanlar' },
         { val: 'tests', text: 'Testlar' },
@@ -2166,9 +2348,48 @@ ${token}`
         });
     };
 
+    window.archiveItem = async (id) => {
+        showModal('Tasdiqlash', 'Haqiqatan ham ushbu testni arxivlashni xohlaysizmi?', async () => {
+            const token = localStorage.getItem('access_token');
+            try {
+                await axios.post(`/api/tests/${id}/archive/`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                loadData(token, currentPage);
+                showModal('Muvaffaqiyatli', 'Test muvaffaqiyatli arxivlandi');
+            } catch (e) {
+                showModal('Xatolik', 'Amaliyot bajarilmadi. ' + (e.response?.data?.error || e.message));
+            }
+        });
+    };
+
+    window.unarchiveItem = async (id) => {
+        showModal('Tasdiqlash', 'Haqiqatan ham ushbu testni arxivdan chiqarishni xohlaysizmi?', async () => {
+            const token = localStorage.getItem('access_token');
+            try {
+                await axios.post(`/api/tests/${id}/unarchive/`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                loadData(token, currentPage);
+                showModal('Muvaffaqiyatli', 'Test arxivdan chiqarildi');
+            } catch (e) {
+                showModal('Xatolik', 'Amaliyot bajarilmadi. ' + (e.response?.data?.error || e.message));
+            }
+        });
+    };
+
     function logout() {
         localStorage.removeItem('access_token');
         window.location.href = '/login/';
+    }
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        if (sidebar.classList.contains('-translate-x-full')) {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
     }
 </script>
 {% endblock %}

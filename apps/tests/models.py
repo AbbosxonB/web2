@@ -21,6 +21,7 @@ class Test(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    is_archived = models.BooleanField(default=False)
     allow_mobile_access = models.BooleanField(default=True, help_text="Telefondan kirishga ruxsat berish")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_tests')
     created_at = models.DateTimeField(auto_now_add=True)

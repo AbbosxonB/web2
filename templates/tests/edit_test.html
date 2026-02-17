@@ -182,7 +182,7 @@
 
 {% block scripts %}
 <script>
-    const TEST_ID = {{ test_id }};
+    const TEST_ID = parseInt("{{ test_id }}");
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login/';
 

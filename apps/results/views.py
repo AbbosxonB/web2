@@ -8,6 +8,7 @@ from .serializers import TestResultSerializer
 from docxtpl import DocxTemplate
 from django.conf import settings
 from django.utils import timezone
+from django.utils.encoding import escape_uri_path
 import os
 
 class CustomPagination(pagination.PageNumberPagination):
@@ -28,9 +29,10 @@ class TestResultViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role == 'student':
             # Students only see their own results
-            return TestResult.objects.filter(student__user=user)
+            # Students only see their own results
+            return TestResult.objects.filter(student__user=user).order_by('-id')
         
-        queryset = TestResult.objects.all().select_related('student', 'test', 'student__group')
+        queryset = TestResult.objects.all().select_related('student', 'test', 'student__group').order_by('-id')
 
         # Date Filtering
         start_date = self.request.query_params.get('start_date')
@@ -59,6 +61,7 @@ class TestResultViewSet(viewsets.ModelViewSet):
         if user.role != 'admin':
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Natijani o'chirish uchun faqat Admin huquqi talab qilinadi.")
+        self._log_action('delete', instance)
         instance.delete()
 
     @action(detail=True, methods=['post'])
@@ -71,6 +74,9 @@ class TestResultViewSet(viewsets.ModelViewSet):
         result.can_retake = True
         result.retake_granted_by = user
         result.save()
+        
+        self._log_action('retake', result)
+        
         return Response({'status': 'retake_granted'})
 
     @action(detail=False, methods=['post'])
@@ -90,13 +96,42 @@ class TestResultViewSet(viewsets.ModelViewSet):
         if action == 'delete':
             # Check delete permission if needed, but admin/dean is already checked
             queryset.delete()
+            self._log_action('bulk_action', extra_details=f"{len(ids)} ta natija o'chirildi")
             return Response({'status': 'deleted', 'count': len(ids)})
             
         elif action == 'retake':
             queryset.update(can_retake=True, retake_granted_by=user)
+            self._log_action('bulk_action', extra_details=f"{len(ids)} ta natijaga qayta topshirish ruxsati berildi")
             return Response({'status': 'retake_granted', 'count': len(ids)})
             
         return Response({'error': 'Noto\'g\'ri amal'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def _log_action(self, action_type, instance=None, extra_details=None):
+        from apps.logs.models import SystemLog
+        
+        action_map = {
+            'delete': "Natija o'chirildi",
+            'retake': "Qayta topshirishga ruxsat berildi",
+            'bulk_action': "Ommaviy amal (Natijalar)"
+        }
+        
+        details = ""
+        if instance:
+            student_name = instance.student.full_name if instance.student else "Noma'lum"
+            test_title = instance.test.title if instance.test else "Noma'lum"
+            details = f"Natija: {student_name} - {test_title}"
+            
+        if extra_details:
+             details = f"{details}. {extra_details}" if details else extra_details
+            
+        ip = self.request.META.get('REMOTE_ADDR')
+        
+        SystemLog.objects.create(
+            user=self.request.user,
+            action=action_map.get(action_type, action_type),
+            details=details,
+            ip_address=ip
+        )
 
     @action(detail=False, methods=['get'])
     def export_excel(self, request):
@@ -165,70 +200,434 @@ class TestResultViewSet(viewsets.ModelViewSet):
         wb.save(response)
         return response
 
-    @action(detail=False, methods=['get'])
-    def export_docx(self, request):
-        user = request.user
-        if user.role not in ['admin', 'dean']:
-            return Response({'error': 'Huquq yo\'q'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Apply filters
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        if not queryset.exists():
-            return Response({'error': 'Hech qanday natija topilmadi'}, status=status.HTTP_404_NOT_FOUND)
+# MOVED OUTSIDE THE CLASS - This is the fix!
+def export_docx_view(request):
+    """Standalone function-based view for export"""
+    user = request.user
+    
+    if not user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+    
+    if user.role not in ['admin', 'dean']:
+        return HttpResponse('Huquq yo\'q', status=403)
 
-        # Prepare context data
-        # We need to handle potential multiple groups or tests. 
-        # Ideally, this export is for a single exam sheet (Vedmost), so usually 1 Group + 1 Test.
-        # We will take the first result's details as "Header" info.
-        first_result = queryset.first()
-        student = first_result.student
-        group = student.group if student else None
-        test = first_result.test
-        
-        group_name = group.name if group else "Noma'lum"
-        course_num = f"{group.course}-kurs" if (group and group.course) else "-"
-        direction_name = group.direction if group else "-"
-        # Try to guess faculty if possible, else static
-        faculty_name = "Iqtisodiyot va pedagogika" 
-        
-        results_list = []
-        for index, result in enumerate(queryset, start=1):
-            results_list.append({
-                'number': str(index),
-                'full_name': result.student.full_name if result.student else "Noma'lum",
-                'score': str(result.score),
-                'signature': ''
-            })
+    group_id = request.GET.get('group_id')
+    if not group_id:
+        return HttpResponse('Group ID talab qilinadi', status=400)
 
-        context = {
-            'university_name': "TOSHKENT IJTIMOIY INNOVATSIYA UNIVERSITETI",
-            'Guruh': group_name,
-            'Fakultet': faculty_name,
-            'Kursi': course_num,
-            'Test_nomi': test.title if test else "Noma'lum",
-            'Sana': timezone.now().strftime("%d.%m.%Y"),
-            'results_table': results_list,
-        }
-
-        template_path = os.path.join(settings.BASE_DIR, 'apps/results/templates/results/docx/vedmost_template.docx')
-        if not os.path.exists(template_path):
-             return Response({'error': 'Template topilmadi'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            doc = DocxTemplate(template_path)
-            doc.render(context)
+    # Get group and results
+    from apps.groups.models import Group
+    from apps.subjects.models import Subject
+    from apps.students.models import Student
+    
+    try:
+        group = Group.objects.get(id=group_id)
+    except Group.DoesNotExist:
+        return HttpResponse('Guruh topilmadi', status=404)
+    
+    students = Student.objects.filter(group=group).order_by('full_name')
+    subjects = Subject.objects.filter(tests__groups__id=group_id).distinct().order_by('name')
+    
+    results_list = []
+    for index, student in enumerate(students, start=1):
+        student_scores = []
+        for subject in subjects:
+            # Get all test results for this student and subject
+            results = TestResult.objects.filter(
+                student=student, 
+                test__subject=subject
+            ).order_by('started_at')
             
-            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            filename = f"Vedmost_{group_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            doc.save(response)
-            return response
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return Response({'error': f'Xatolik: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if results.exists():
+                scores = [str(r.score) for r in results]
+                student_scores.append(', '.join(scores))
+            else:
+                student_scores.append('-')
+        
+        results_list.append({
+            'number': str(index),
+            'full_name': student.full_name,
+            'scores': ' | '.join(student_scores),
+            'signature': ''
+        })
 
+    context = {
+        'university_name': "TOSHKENT IJTIMOIY INNOVATSIYA UNIVERSITETI",
+        'Guruh': group.name,
+        'Fakultet': "Iqtisodiyot va pedagogika",
+        'Kursi': f"{group.course}-kurs",
+        'Sana': timezone.now().strftime("%d.%m.%Y"),
+        'results_table': results_list,
+    }
+
+    template_path = os.path.join(settings.BASE_DIR, 'apps/results/templates/results/docx/vedmost_template.docx')
+    
+    if not os.path.exists(template_path):
+        return HttpResponse('Template topilmadi', status=500)
+
+    try:
+        doc = DocxTemplate(template_path)
+        doc.render(context)
+        
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        filename = f"Vedmost_{group.name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        doc.save(response)
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f'Xatolik: {str(e)}', status=500)
+
+    
 from django.shortcuts import render
+from apps.groups.models import Group
+from apps.subjects.models import Subject
+from apps.students.models import Student
+from django.db.models import Sum, Prefetch
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+from apps.directions.models import Direction
+
+class VedmostView(LoginRequiredMixin, View):
+    def get(self, request):
+        user = request.user
+        if user.role not in ['admin', 'dean', 'teacher']:
+             from django.http import HttpResponseForbidden
+             return HttpResponseForbidden("Ruxsat yo'q")
+
+        # 1. Base Data
+        directions = Direction.objects.all().order_by('name')
+        
+        # 2. Get Filter Params
+        direction_id = request.GET.get('direction_id')
+        course = request.GET.get('course')
+        group_id = request.GET.get('group_id')
+        
+        context = {
+            'page': 'vedmost',
+            'directions': directions,
+            'selected_direction_id': int(direction_id) if direction_id else None,
+            'selected_course': int(course) if course else None,
+            'selected_group_id': int(group_id) if group_id else None,
+            'courses': [], # Will populate if direction is selected
+            'groups': [],  # Will populate if course is selected
+        }
+        
+        # 3. Dependent Logic
+        if direction_id:
+            try:
+                selected_direction = Direction.objects.get(id=direction_id)
+                context['selected_direction'] = selected_direction
+                
+                # Fetch available courses for this direction (based on existing groups)
+                # Or just hardcode 1-4 if needed, but better to check groups
+                # Since Group.direction is a name, we filter by name
+                available_courses = Group.objects.filter(direction=selected_direction.name).values_list('course', flat=True).distinct().order_by('course')
+                context['courses'] = available_courses
+                
+                if course:
+                    # Fetch Groups for this direction + course
+                    groups = Group.objects.filter(direction=selected_direction.name, course=course).order_by('name')
+                    context['groups'] = groups
+                    
+                    if group_id:
+                        context['selected_group'] = groups.filter(id=group_id).first()
+                        
+                        if context['selected_group']:
+                             # LOGIC TO GENERATE REPORT (Copied/Adapted from original)
+                            students = Student.objects.filter(group_id=group_id).order_by('full_name')
+                            subjects = Subject.objects.filter(tests__groups__id=group_id).distinct().order_by('name')
+                            
+                            report = []
+                            all_results = TestResult.objects.filter(
+                                student__group_id=group_id,
+                                test__subject__in=subjects
+                            ).select_related('test', 'test__subject', 'student').order_by('started_at')
+                            
+                            results_map = {} 
+                            for res in all_results:
+                                s_id = res.student.id
+                                sub_id = res.test.subject.id
+                                
+                                if s_id not in results_map:
+                                    results_map[s_id] = {}
+                                if sub_id not in results_map[s_id]:
+                                    results_map[s_id][sub_id] = []
+                                    
+                                results_map[s_id][sub_id].append(str(res.score))
+                            
+                            
+                            for student in students:
+                                student_row = {'student': student, 'scores': []}
+                                s_map = results_map.get(student.id, {})
+                                
+                                for subject in subjects:
+                                    scores_list = s_map.get(subject.id, [])
+                                    scores_str = ", ".join(scores_list) if scores_list else ""
+                                    student_row['scores'].append({'subject_id': subject.id, 'value': scores_str})
+                                
+                                report.append(student_row)
+
+                            context['subjects'] = subjects
+                            context['report'] = report
+
+            except Direction.DoesNotExist:
+                pass
+
+
+        return render(request, 'vedmost_list_v5.html', context)
+
+
+class JamlanmaQaytnomaView(LoginRequiredMixin, View):
+    def get(self, request):
+        user = request.user
+        if user.role not in ['admin', 'dean', 'teacher']:
+             from django.http import HttpResponseForbidden
+             return HttpResponseForbidden("Ruxsat yo'q")
+
+        # 1. Base Data
+        directions = Direction.objects.all().order_by('name')
+        
+        # 2. Get Filter Params
+        direction_id = request.GET.get('direction_id')
+        course = request.GET.get('course')
+        group_id = request.GET.get('group_id')
+        export_excel = request.GET.get('export_excel')
+        
+        context = {
+            'page': 'jamlanma_qaytnoma',
+            'directions': directions,
+            'selected_direction_id': int(direction_id) if direction_id else None,
+            'selected_course': int(course) if course else None,
+            'selected_group_id': int(group_id) if group_id else None,
+            'courses': [],
+            'groups': [],
+        }
+        
+        # 3. Dependent Logic
+        if direction_id:
+            try:
+                selected_direction = Direction.objects.get(id=direction_id)
+                context['selected_direction'] = selected_direction
+                
+                # Fetch available courses
+                available_courses = Group.objects.filter(direction=selected_direction.name).values_list('course', flat=True).distinct().order_by('course')
+                context['courses'] = available_courses
+                
+                if course:
+                    # Fetch Groups
+                    groups = Group.objects.filter(direction=selected_direction.name, course=course).order_by('name')
+                    context['groups'] = groups
+                    
+                    if group_id:
+                        try:
+                            selected_group = Group.objects.get(id=group_id)
+                            context['selected_group'] = selected_group
+                            
+                            # 4. Generate Report
+                            students = Student.objects.filter(group=selected_group).order_by('full_name')
+                            
+                            # Find subjects that have results for this group
+                            # Using 'test__groups' might be safer if TestAssignment is used, 
+                            # but generally 'test__results__student__group' matches actual results.
+                            # Let's use subjects linked to tests that have results for this group.
+                            subjects = Subject.objects.filter(
+                                tests__results__student__group=selected_group
+                            ).distinct().order_by('name')
+                            
+                            # Pre-fetch results
+                            all_results = TestResult.objects.filter(
+                                student__group=selected_group,
+                                test__subject__in=subjects
+                            ).select_related('test', 'test__subject', 'student')
+                            
+                            # Map results: student_id -> subject_id -> score (or list of scores)
+                            # Assuming we want the *latest* or *best* score if multiple? 
+                            # Let's show all scores joined by comma if multiple, or just the latest?
+                            # Excel usually has one column per subject. If multiple tests per subject?
+                            # Maybe "Subject Name" column implies aggregating tests?
+                            # For now, let's just list scores.
+                            
+                            results_map = {}
+                            for res in all_results:
+                                s_id = res.student.id
+                                sub_id = res.test.subject.id
+                                
+                                if s_id not in results_map: results_map[s_id] = {}
+                                if sub_id not in results_map[s_id]: results_map[s_id][sub_id] = []
+                                
+                                results_map[s_id][sub_id].append(str(res.score))
+
+                            report = []
+                            for index, student in enumerate(students, 1):
+                                row = {
+                                    'number': index,
+                                    'student': student,
+                                    'scores': []
+                                }
+                                s_map = results_map.get(student.id, {})
+                                
+                                for subject in subjects:
+                                    scores_list = s_map.get(subject.id, [])
+                                    scores_str = ", ".join(scores_list) if scores_list else ""
+                                    row['scores'].append({'subject_id': subject.id, 'value': scores_str})
+                                
+                                report.append(row)
+                                
+                            context['subjects'] = subjects
+                            context['report'] = report
+                            
+                            # Calculate Statistics
+                            stats = []
+                            total_students_count = students.count()
+                            
+                            for subject in subjects:
+                                subject_stats = {
+                                    'subject': subject,
+                                    'total': total_students_count,
+                                    'participated': 0,
+                                    'not_participated': 0,
+                                    'grade_5': 0,
+                                    'grade_4': 0,
+                                    'grade_3': 0,
+                                    'failed': 0
+                                }
+                                
+                                # Get all results for this subject/group
+                                subject_results = [r for r in all_results if r.test.subject.id == subject.id]
+                                
+                                unique_student_ids = set()
+                                for res in subject_results:
+                                    unique_student_ids.add(res.student.id)
+                                    
+                                    p = res.percentage
+                                    if p >= 90:
+                                        subject_stats['grade_5'] += 1
+                                    elif p >= 70:
+                                        subject_stats['grade_4'] += 1
+                                    elif p >= 60:
+                                        subject_stats['grade_3'] += 1
+                                    else:
+                                        subject_stats['failed'] += 1
+                                
+                                subject_stats['participated'] = len(unique_student_ids) 
+                                subject_stats['not_participated'] = total_students_count - subject_stats['participated']
+                                
+                                stats.append(subject_stats)
+                                
+                            context['stats'] = stats
+                            
+                            # 5. Export Logic
+                            if export_excel == 'true':
+                                return self.export_to_excel(selected_group, subjects, report, stats)
+
+                        except Group.DoesNotExist:
+                            pass
+
+            except Direction.DoesNotExist:
+                pass
+
+        return render(request, 'results/jamlanma_qaytnoma.html', context)
+
+    def export_to_excel(self, group, subjects, report, stats):
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+        from django.http import HttpResponse
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = f"{group.name} - Jamlanma"
+        
+        # Styles
+        bold_font = Font(bold=True)
+        center_align = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        bg_yellow = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+        # Header 1: Title
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3 + len(subjects))
+        ws['A1'] = f"Guruh: {group.name} | Kurs: {group.course} | Yo'nalish: {group.direction}"
+        ws['A1'].font = bold_font
+        ws['A1'].alignment = center_align
+
+        # Header 2: Column Names
+        headers = ["№", "F.I.Sh", "ID"] + [s.name for s in subjects]
+        ws.append(headers)
+        
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=2, column=col_num)
+            cell.font = bold_font
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        # Data Rows
+        for row_data in report:
+            student = row_data['student']
+            scores = [s['value'] for s in row_data['scores']]
+            
+            row_cells = [row_data['number'], student.full_name, student.student_id] + scores
+            ws.append(row_cells)
+            
+            # Apply border to data cells
+            for col_num in range(1, len(row_cells) + 1):
+                cell = ws.cell(row=ws.max_row, column=col_num)
+                cell.border = thin_border
+                if col_num > 3: # Score columns
+                    cell.alignment = center_align
+        
+        # Statistics Section
+        ws.append([]) # Empty row
+        start_row = ws.max_row + 1
+        
+        stat_labels = [
+            ("Jami talabalar", 'total'),
+            ("Qatnashdi", 'participated'),
+            ("Qatnashmadi", 'not_participated'),
+            ("5 baho (90-100%)", 'grade_5'),
+            ("4 baho (70-89%)", 'grade_4'),
+            ("3 baho (60-69%)", 'grade_3'),
+            ("Yiqildi (0-59%)", 'failed'),
+        ]
+
+        for label, key in stat_labels:
+            row_cells = ["", label, ""] 
+            for stat in stats:
+                row_cells.append(stat[key])
+            
+            ws.append(row_cells)
+            
+            # Formatting
+            current_row = ws.max_row
+            label_cell = ws.cell(row=current_row, column=2)
+            label_cell.font = bold_font
+            label_cell.border = thin_border
+            
+            for i in range(len(stats)):
+                val_cell = ws.cell(row=current_row, column=4 + i)
+                val_cell.alignment = center_align
+                val_cell.border = thin_border
+
+
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 5
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 15
+        for i in range(len(subjects)):
+            col_letter = openpyxl.utils.get_column_letter(4 + i)
+            ws.column_dimensions[col_letter].width = 15
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        timestamp = timezone.now().strftime('%d_%m_%Y_%H_%M_%S')
+        filename = f"Jamlanma_{group.name}_{timestamp}.xlsx"
+        safe_filename = escape_uri_path(filename)
+        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{safe_filename}"
+        wb.save(response)
+        return response
+
 def result_list_view(request):
     return render(request, 'crud_list.html', {'page': 'results'})
