@@ -1,0 +1,34 @@
+services:
+  # Web Service
+  - type: web
+    name: test-system
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 5432
+
+  # PostgreSQL Database
+  - type: pserv
+    name: test-system-db
+    runtime: postgresql
+    plan: free
+    databaseName: test_system
+    databaseUser: test_admin
