@@ -184,6 +184,9 @@ if RENDER_EXTERNAL_HOSTNAME:
 if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
     CSRF_TRUSTED_ORIGINS.append(f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}")
 
+# Fix for 403 Forbidden with Railway (SSL termination)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Custom User Model
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.CustomUser'
