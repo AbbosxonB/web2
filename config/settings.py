@@ -19,11 +19,6 @@ import dj_database_url
 # Load environment variables from .env file
 load_dotenv()
 
-# DEBUG: Print environment keys to identify missing variables
-import sys
-print("DEBUG: Environment Keys:", [k for k in os.environ.keys()], file=sys.stderr)
-print(f"DEBUG: DATABASE_URL present: {'DATABASE_URL' in os.environ}", file=sys.stderr)
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
