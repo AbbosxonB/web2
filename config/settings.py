@@ -186,6 +186,8 @@ if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
 
 # Fix for 403 Forbidden with Railway (SSL termination)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 # Custom User Model
 # Custom User Model

@@ -479,7 +479,7 @@
                 }
 
                 try {
-
+                    const token = localStorage.getItem('access_token');
                     await axios.post('/api/monitoring/settings/', {
                         key: 'camera_required_globally',
                         value: this.globalCameraRequired
