@@ -40,17 +40,19 @@ def import_students_from_excel(file):
             continue
         
         # Sync Direction
-        try:
-            # Try to get existing first
-            direction_obj = Direction.objects.get(name=direction_name)
-        except Direction.DoesNotExist:
-            # Create new with unique code
-            import uuid
-            # Ensure code is unique and within limit. 
-            code_base = direction_name[:20].upper().replace(' ', '_')
-            unique_suffix = str(uuid.uuid4())[:8]
-            code = f"{code_base}_{course}_{unique_suffix}"
-            direction_obj = Direction.objects.create(name=direction_name, code=code[:50])
+        # Sync Direction
+        direction_obj = None
+        if direction_name:
+            direction_obj = Direction.objects.filter(name__iexact=direction_name).first()
+            
+            if not direction_obj:
+                # Create new with unique code
+                import uuid
+                # Ensure code is unique and within limit. 
+                code_base = direction_name[:20].upper().replace(' ', '_')
+                unique_suffix = str(uuid.uuid4())[:8]
+                code = f"{code_base}_{course}_{unique_suffix}"
+                direction_obj = Direction.objects.create(name=direction_name, code=code[:50])
 
         # Sync Group
         group = None
