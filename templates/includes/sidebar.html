@@ -12,6 +12,7 @@
             class="block px-4 py-2 rounded-lg {% if page == 'dashboard' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Bosh
             sahifa</a>
 
+        {% if request.user.role != 'student' %}
         <!-- 1.1 Monitoring (Admin) -->
         <a href="/monitoring/" id="menu-monitoring"
             class="block px-4 py-2 rounded-lg {% if page == 'monitoring' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Monitoring</a>
@@ -23,11 +24,13 @@
         <!-- 3. Talabalar -->
         <a href="/students/" id="menu-students"
             class="block px-4 py-2 rounded-lg {% if page == 'students' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Talabalar</a>
+        {% endif %}
 
         <!-- 4. Natijalar -->
         <a href="/results/" id="menu-results"
             class="block px-4 py-2 rounded-lg {% if page == 'results' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Natijalar</a>
 
+        {% if request.user.role != 'student' %}
         <!-- 4.1 Jamlanma Qaytnoma -->
         <a href="/jamlanma-qaytnoma/" id="menu-jamlanma_qaytnoma"
             class="block px-4 py-2 rounded-lg {% if page == 'jamlanma_qaytnoma' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Jamlanma
@@ -54,6 +57,7 @@
         <!-- 9. Loglar -->
         <a href="/logs/" id="menu-log_system"
             class="block px-4 py-2 rounded-lg {% if page == 'log_system' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Loglar</a>
+        {% endif %}
     </nav>
     <div class="p-4 border-t border-primary-800">
         <div class="flex items-center space-x-3">
