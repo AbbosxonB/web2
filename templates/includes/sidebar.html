@@ -56,7 +56,7 @@
             class="block px-4 py-2 rounded-lg {% if page == 'subjects' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Fanlar</a>
         {% endif %}
 
-        {% if user_perms.is_admin or user_perms.can_view_tests %}
+        {% if request.user.role != 'student' and (user_perms.is_admin or user_perms.can_view_tests) %}
         <!-- 7. Testlar -->
         <a href="/tests/" id="menu-tests"
             class="block px-4 py-2 rounded-lg {% if page == 'tests' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Testlar</a>
