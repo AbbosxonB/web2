@@ -505,12 +505,38 @@ class JamlanmaQaytnomaView(LoginRequiredMixin, View):
                                 for res in subject_results:
                                     unique_student_ids.add(res.student.id)
                                     
-                                    p = res.percentage
-                                    if p >= 90:
+                                    # Logic update: Handle 50-point scale specifically
+                                    grade = 0
+                                    if res.max_score == 50:
+                                        # User requested specific scale for "Ball" (assumed 50 max)
+                                        # 30-34 -> 3
+                                        # 35-39 -> 4
+                                        # 40-50 -> 5
+                                        if res.score >= 40:
+                                            grade = 5
+                                        elif res.score >= 35:
+                                            grade = 4
+                                        elif res.score >= 30:
+                                            grade = 3
+                                        else:
+                                            grade = 2 # Fail
+                                    else:
+                                        # Default percentage-based logic
+                                        p = res.percentage
+                                        if p >= 90:
+                                            grade = 5
+                                        elif p >= 70:
+                                            grade = 4
+                                        elif p >= 60:
+                                            grade = 3
+                                        else:
+                                            grade = 2 # Fail
+
+                                    if grade == 5:
                                         subject_stats['grade_5'] += 1
-                                    elif p >= 70:
+                                    elif grade == 4:
                                         subject_stats['grade_4'] += 1
-                                    elif p >= 60:
+                                    elif grade == 3:
                                         subject_stats['grade_3'] += 1
                                     else:
                                         subject_stats['failed'] += 1
@@ -588,10 +614,10 @@ class JamlanmaQaytnomaView(LoginRequiredMixin, View):
             ("Jami talabalar", 'total'),
             ("Qatnashdi", 'participated'),
             ("Qatnashmadi", 'not_participated'),
-            ("5 baho (90-100%)", 'grade_5'),
-            ("4 baho (70-89%)", 'grade_4'),
-            ("3 baho (60-69%)", 'grade_3'),
-            ("Yiqildi (0-59%)", 'failed'),
+            ("5 baho (A'lo)", 'grade_5'),
+            ("4 baho (Yaxshi)", 'grade_4'),
+            ("3 baho (Qoniqarli)", 'grade_3'),
+            ("Yiqildi (Qoniqarsiz)", 'failed'),
         ]
 
         for label, key in stat_labels:

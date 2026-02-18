@@ -37,7 +37,8 @@
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2">
                             <option value="">-- Yo'nalishni tanlang --</option>
                             {% for direction in directions %}
-                            <option value="{{ direction.id }}" {% if selected_direction_id == direction.id %}selected{% endif %}>
+                            <option value="{{ direction.id }}" {% if selected_direction_id==direction.id %}selected{%
+                                endif %}>
                                 {{ direction.name }}
                             </option>
                             {% endfor %}
@@ -52,7 +53,7 @@
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2">
                             <option value="">-- Kursni tanlang --</option>
                             {% for c in courses %}
-                            <option value="{{ c }}" {% if selected_course == c %}selected{% endif %}>
+                            <option value="{{ c }}" {% if selected_course==c %}selected{% endif %}>
                                 {{ c }}-kurs
                             </option>
                             {% endfor %}
@@ -68,7 +69,7 @@
                             class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2">
                             <option value="">-- Guruhni tanlang --</option>
                             {% for group in groups %}
-                            <option value="{{ group.id }}" {% if selected_group_id == group.id %}selected{% endif %}>
+                            <option value="{{ group.id }}" {% if selected_group_id==group.id %}selected{% endif %}>
                                 {{ group.name }}
                             </option>
                             {% endfor %}
@@ -133,7 +134,8 @@
                                     class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white z-10 border border-gray-200 shadow-custom-right">
                                     <div class="flex flex-col">
                                         <span>{{ row.student.full_name }}</span>
-                                        <span class="text-xs text-gray-400 font-mono">{{ row.student.student_id }}</span>
+                                        <span class="text-xs text-gray-400 font-mono">{{ row.student.student_id
+                                            }}</span>
                                     </div>
                                 </td>
                                 {% for score_item in row.scores %}
@@ -189,7 +191,8 @@
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200">Jami
                                     talabalar</td>
                                 {% for stat in stats %}
-                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{ stat.total }}</td>
+                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{
+                                    stat.total }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="hover:bg-gray-50 bg-green-50">
@@ -213,28 +216,31 @@
                             <!-- Grades -->
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200">5 baho
-                                    (90-100%)</td>
+                                    (A'lo)</td>
                                 {% for stat in stats %}
-                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{ stat.grade_5 }}</td>
+                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{
+                                    stat.grade_5 }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200">4 baho
-                                    (70-89%)</td>
+                                    (Yaxshi)</td>
                                 {% for stat in stats %}
-                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{ stat.grade_4 }}</td>
+                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{
+                                    stat.grade_4 }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200">3 baho
-                                    (60-69%)</td>
+                                    (Qoniqarli)</td>
                                 {% for stat in stats %}
-                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{ stat.grade_3 }}</td>
+                                <td class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200">{{
+                                    stat.grade_3 }}</td>
                                 {% endfor %}
                             </tr>
                             <tr class="hover:bg-gray-50 bg-red-50">
                                 <td class="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200">Yiqildi
-                                    (0-59%)</td>
+                                    (Qoniqarsiz)</td>
                                 {% for stat in stats %}
                                 <td
                                     class="px-4 py-2 text-center text-sm text-gray-700 border border-gray-200 text-red-600 font-bold">
