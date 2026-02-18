@@ -498,6 +498,8 @@
         'groups': {
             title: 'Guruhlar',
             api: '/api/groups/',
+            importApi: '/api/groups/import_data/',
+            sampleUrl: '/api/groups/sample_file/',
             columns: ['<input type="checkbox" id="select-all-cb" onchange="toggleAll(this.checked)">', 'Nomi', 'Kurs', 'Yo\'nalish', 'Holat', 'Amallar'],
             fields: [
                 { name: 'name', label: 'Guruh Nomi', type: 'text' },
@@ -528,6 +530,8 @@
         'directions': {
             title: 'Yo\'nalishlar',
             api: '/api/directions/',
+            importApi: '/api/directions/import_data/',
+            sampleUrl: '/api/directions/sample_file/',
             columns: ['Nomi', 'Kod', 'Amallar'],
             fields: [
                 { name: 'name', label: 'Yo\'nalish Nomi', type: 'text' },
@@ -1923,6 +1927,7 @@
 
             // Determine sample URL based on page or specific action
             let sampleUrl = currentSampleUrl || '';
+            if (!sampleUrl && config.sampleUrl) sampleUrl = config.sampleUrl;
             if (!sampleUrl && PAGE === 'students') sampleUrl = '/api/students/sample/';
 
             if (sampleUrl) {

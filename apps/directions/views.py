@@ -57,5 +57,74 @@ class DirectionViewSet(viewsets.ModelViewSet):
             ip_address=ip
         )
 
+    @action(detail=False, methods=['post'])
+    def import_data(self, request):
+        import openpyxl
+        from rest_framework.parsers import MultiPartParser
+        
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'Fayl tanlanmadi'}, status=400)
+            
+        try:
+            wb = openpyxl.load_workbook(file_obj)
+            sheet = wb.active
+            
+            count = 0
+            errors = []
+            
+            # Assumptions: 
+            # Row 1 is header. 
+            # Columns: Nomi (Name), Kod (Code)
+            
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                if not row[0]: # Skip empty name
+                    continue
+                    
+                name = str(row[0]).strip()
+                code = str(row[1]).strip() if len(row) > 1 and row[1] else name.upper()[:10]
+                
+                # Check duplication
+                if Direction.objects.filter(code=code).exists():
+                    # Update or Skip? Let's skip or update name.
+                    # For now just skip to avoid overwrite complex logic
+                    d = Direction.objects.get(code=code)
+                    if d.name != name:
+                        d.name = name
+                        d.save()
+                        self._log_action('update', d, 'Import orqali yangilandi')
+                    continue
+                    
+                instance = Direction.objects.create(name=name, code=code)
+                self._log_action('create', instance, 'Import orqali yaratildi')
+                count += 1
+                
+            return Response({'status': 'success', 'count': count})
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+    @action(detail=False, methods=['get'])
+    def sample_file(self, request):
+        import openpyxl
+        from django.http import HttpResponse
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Namuna"
+        
+        # Headers
+        ws.append(['Nomi', 'Kod'])
+        
+        # Sample Data
+        ws.append(['Dasturiy Injiniring', 'DI-2024'])
+        ws.append(['Axborot Xavfsizligi', 'AX-2024'])
+        
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=yo_nalishlar_namuna.xlsx'
+        
+        wb.save(response)
+        return response
+
 def direction_list_view(request):
     return render(request, 'crud_list.html', {'page': 'directions'})
