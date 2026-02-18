@@ -385,8 +385,12 @@ class VedmostView(LoginRequiredMixin, View):
         return render(request, 'vedmost_list_v5.html', context)
 
 
-class JamlanmaQaytnomaView(LoginRequiredMixin, View):
+class JamlanmaQaytnomaView(View):
     def get(self, request):
+        if not request.user.is_authenticated:
+            from django.shortcuts import redirect
+            return redirect('/login/')
+
         user = request.user
         if user.role == 'student':
             from django.http import HttpResponseForbidden
