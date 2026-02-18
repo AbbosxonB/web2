@@ -116,10 +116,10 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=['post'], url_path='import')
     def import_students(self, request):
-        file = request.FILES.get('file')
-        if not file: return Response({'error': 'Fayl tanlanmadi'}, status=400)
-        
         try:
+            file = request.FILES.get('file')
+            if not file: return Response({'error': 'Fayl tanlanmadi'}, status=400)
+            
             from .excel_import import import_students_from_excel
             count = import_students_from_excel(file)
             self._log_action('import', extra_details=f"{count} ta talaba yuklandi")
@@ -127,7 +127,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({'error': str(e)}, status=400)
+            return Response({'error': f"Xatolik yuz berdi: {str(e)}"}, status=400)
 
     @decorators.action(detail=False, methods=['get'], url_path='sample')
     def download_sample(self, request):

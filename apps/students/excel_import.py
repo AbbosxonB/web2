@@ -6,18 +6,19 @@ from apps.groups.models import Group
 User = get_user_model()
 
 def import_students_from_excel(file):
-    wb = openpyxl.load_workbook(file)
+    # Use read_only=True for memory efficiency, data_only=True to get values not formulas
+    wb = openpyxl.load_workbook(file, read_only=True, data_only=True)
     sheet = wb.active
-    # Expected columns (via headers or order): 
-    # 0: full_name, 1: student_id, 2: group_name, 3: course, 4: direction, 
-    # 5: education_form, 6: phone, 7: email, 8: login, 9: password
+    # ... rest of code
     
-    from apps.directions.models import Direction  # Import added here to avoid circular imports if any
+    from apps.directions.models import Direction
     
     count = 0
+    errors = []
     
     print(f"Starting import. Sheet max row: {sheet.max_row}")
-    for row in sheet.iter_rows(min_row=2, values_only=True):
+    # when read_only is True, max_row might be None or approximate, but iter_rows works.
+    for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
         print(f"Processing row: {row}")
         if not row or not row[0]: # Skip empty
             print("Skipping empty row")
