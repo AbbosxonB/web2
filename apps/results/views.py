@@ -10,6 +10,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.encoding import escape_uri_path
 import os
+from apps.accounts.granular_permissions import GranularPermission
 
 class CustomPagination(pagination.PageNumberPagination):
     page_size = 20
@@ -19,7 +20,8 @@ class CustomPagination(pagination.PageNumberPagination):
 class TestResultViewSet(viewsets.ModelViewSet):
     queryset = TestResult.objects.all()
     serializer_class = TestResultSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, GranularPermission]
+    module_name = 'results'
     pagination_class = CustomPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['status', 'test', 'student__group']
@@ -386,9 +388,15 @@ class VedmostView(LoginRequiredMixin, View):
 class JamlanmaQaytnomaView(LoginRequiredMixin, View):
     def get(self, request):
         user = request.user
-        if user.role not in ['admin', 'dean', 'teacher']:
-             from django.http import HttpResponseForbidden
-             return HttpResponseForbidden("Ruxsat yo'q")
+        if user.role == 'student':
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Ruxsat yo'q")
+            
+        if user.role != 'admin':
+            from apps.accounts.models import ModuleAccess
+            if not ModuleAccess.objects.filter(user=user, module='vedmost', can_view=True).exists():
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("Ruxsat yo'q (Module Access Denied)")
 
         # 1. Base Data
         directions = Direction.objects.all().order_by('name')

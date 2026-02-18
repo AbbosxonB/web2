@@ -12,48 +12,63 @@
             class="block px-4 py-2 rounded-lg {% if page == 'dashboard' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Bosh
             sahifa</a>
 
-        {% if request.user.role != 'student' %}
+        {% if user_perms.is_admin or user_perms.can_view_monitoring %}
         <!-- 1.1 Monitoring (Admin) -->
         <a href="/monitoring/" id="menu-monitoring"
             class="block px-4 py-2 rounded-lg {% if page == 'monitoring' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Monitoring</a>
+        {% endif %}
 
+        {% if user_perms.is_admin or user_perms.can_view_groups %}
         <!-- 2. Guruhlar -->
         <a href="/groups/" id="menu-groups"
             class="block px-4 py-2 rounded-lg {% if page == 'groups' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Guruhlar</a>
+        {% endif %}
 
+        {% if user_perms.is_admin or user_perms.can_view_students %}
         <!-- 3. Talabalar -->
         <a href="/students/" id="menu-students"
             class="block px-4 py-2 rounded-lg {% if page == 'students' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Talabalar</a>
         {% endif %}
 
         <!-- 4. Natijalar -->
+        {% if request.user.role == 'student' or user_perms.is_admin or user_perms.can_view_results %}
         <a href="/results/" id="menu-results"
             class="block px-4 py-2 rounded-lg {% if page == 'results' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Natijalar</a>
+        {% endif %}
 
-        {% if request.user.role != 'student' %}
-        <!-- 4.1 Jamlanma Qaytnoma -->
+        {% if user_perms.is_admin or user_perms.can_view_vedmost %}
+        <!-- 4.1 Jamlanma Qaytnoma (Use 'vedmost' or 'jamlanma_qaytnoma' depending on module name in DB. 'jamlanma_qaytnoma' is likely 'vedmost' in DB? DB has 'vedmost', let's check model. Model has 'vedmost'. But View might be different. Let's assume 'vedmost' for now or 'jamlanma_qaytnoma' if added. The model says 'vedmost'. The context processor just takes module name. So 'can_view_vedmost'. -->
+        <!-- Update: Model has 'vedmost', so we use can_view_vedmost -->
         <a href="/jamlanma-qaytnoma/" id="menu-jamlanma_qaytnoma"
             class="block px-4 py-2 rounded-lg {% if page == 'jamlanma_qaytnoma' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Jamlanma
             Qaytnoma</a>
+        {% endif %}
 
-
-
+        {% if user_perms.is_admin or user_perms.can_view_directions %}
         <!-- 5. Yo'nalishlar -->
         <a href="/directions/" id="menu-directions"
             class="block px-4 py-2 rounded-lg {% if page == 'directions' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Yo'nalishlar</a>
+        {% endif %}
 
+        {% if user_perms.is_admin or user_perms.can_view_subjects %}
         <!-- 6. Fanlar -->
         <a href="/subjects/" id="menu-subjects"
             class="block px-4 py-2 rounded-lg {% if page == 'subjects' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Fanlar</a>
+        {% endif %}
 
+        {% if user_perms.is_admin or user_perms.can_view_tests %}
         <!-- 7. Testlar -->
         <a href="/tests/" id="menu-tests"
             class="block px-4 py-2 rounded-lg {% if page == 'tests' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Testlar</a>
+        {% endif %}
 
+        {% if user_perms.is_admin or user_perms.can_view_employees %}
         <!-- 8. Xodimlar -->
         <a href="/employees/" id="menu-employees"
             class="block px-4 py-2 rounded-lg {% if page == 'employees' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Xodimlar</a>
+        {% endif %}
 
+        {% if user_perms.is_admin or user_perms.can_view_log_system %}
         <!-- 9. Loglar -->
         <a href="/logs/" id="menu-log_system"
             class="block px-4 py-2 rounded-lg {% if page == 'log_system' %}bg-primary-800{% else %}hover:bg-primary-800{% endif %} transition">Loglar</a>
