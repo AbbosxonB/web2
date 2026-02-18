@@ -38,7 +38,18 @@ class StudentViewSet(viewsets.ModelViewSet):
         if education_form:
             queryset = queryset.filter(education_form__iexact=education_form)
             
+        if education_form:
+            queryset = queryset.filter(education_form__iexact=education_form)
+            
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e), 'trace': traceback.format_exc()}, status=500)
 
     def perform_create(self, serializer):
         instance = serializer.save()
