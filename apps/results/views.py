@@ -204,85 +204,148 @@ class TestResultViewSet(viewsets.ModelViewSet):
 
 
 # MOVED OUTSIDE THE CLASS - This is the fix!
+import os
+import traceback
+from django.http import HttpResponse
+from django.utils import timezone
+from django.conf import settings
+from docxtpl import DocxTemplate
+from apps.results.models import TestResult
+
+
 def export_docx_view(request):
-    """Standalone function-based view for export"""
+    """Vedmost export - har bir talaba alohida SATR bo'lib chiqadi"""
+
     user = request.user
-    
+
     if not user.is_authenticated:
         return HttpResponse('Unauthorized', status=401)
-    
-    if user.role not in ['admin', 'dean']:
-        return HttpResponse('Huquq yo\'q', status=403)
 
+    if user.role not in ['admin', 'dean']:
+        return HttpResponse("Huquq yo'q", status=403)
+
+    # Frontend /api/results/export_docx/?student__group=69 yoki ?group_id=69 yuborishi mumkin
     group_id = request.GET.get('group_id') or request.GET.get('student__group')
     if not group_id:
-        return HttpResponse('Group ID talab qilinadi', status=400)
+        return HttpResponse('group_id parametri talab qilinadi', status=400)
 
-    # Get group and results
     from apps.groups.models import Group
     from apps.subjects.models import Subject
     from apps.students.models import Student
-    
+
     try:
         group = Group.objects.get(id=group_id)
     except Group.DoesNotExist:
         return HttpResponse('Guruh topilmadi', status=404)
-    
+
     students = Student.objects.filter(group=group).order_by('full_name')
-    subjects = Subject.objects.filter(tests__groups__id=group_id).distinct().order_by('name')
-    
+
+    # Ushbu guruhga tegishli testlar orqali fanlarni topish
+    subjects = (
+        Subject.objects
+        .filter(tests__groups__id=group_id)
+        .distinct()
+        .order_by('name')
+    )
+
+    # Test nomi - birinchi testni olamiz (agar kerak bo'lsa)
+    from apps.tests.models import Test
+    test_obj = Test.objects.filter(groups__id=group_id).first()
+    test_nomi = test_obj.name if test_obj else ''
+
+    # -----------------------------------------------------------
+    # results_list — har bir element = 1 ta SATR (talaba)
+    # score = barcha fanlar bo'yicha ballar bitta string sifatida
+    # -----------------------------------------------------------
     results_list = []
     for index, student in enumerate(students, start=1):
-        student_scores = []
+
+        all_scores = []
         for subject in subjects:
-            # Get all test results for this student and subject
-            results = TestResult.objects.filter(
-                student=student, 
-                test__subject=subject
-            ).order_by('started_at')
-            
-            if results.exists():
-                scores = [str(r.score) for r in results]
-                student_scores.append(', '.join(scores))
+            qs = (
+                TestResult.objects
+                .filter(student=student, test__subject=subject)
+                .order_by('started_at')
+            )
+            if qs.exists():
+                # Har bir test natijasini ko'rsatamiz
+                subject_scores = ', '.join(str(r.score) for r in qs)
             else:
-                student_scores.append('-')
-        
+                subject_scores = '-'
+            all_scores.append(subject_scores)
+
         results_list.append({
-            'number': str(index),
+            'number':    str(index),
             'full_name': student.full_name,
-            'scores': ' | '.join(student_scores),
-            'signature': ''
+            # Shablon {{ r.score }} ishlatadi — bir xil nom bo'lishi shart
+            'score':     ' | '.join(all_scores) if all_scores else '-',
+            'signature': '',
         })
 
+    # -----------------------------------------------------------
+    # Statistika
+    # -----------------------------------------------------------
+    total_students = students.count()
+
+    # Barcha test natijalari ushbu guruh uchun
+    all_results = TestResult.objects.filter(student__group=group)
+
+    grade_5 = all_results.filter(score__gte=86).count()
+    grade_4 = all_results.filter(score__gte=71, score__lt=86).count()
+    grade_3 = all_results.filter(score__gte=56, score__lt=71).count()
+    grade_2 = all_results.filter(score__lt=56).count()
+
     context = {
-        'university_name': "TOSHKENT IJTIMOIY INNOVATSIYA UNIVERSITETI",
-        'Guruh': group.name,
-        'Fakultet': "Iqtisodiyot va pedagogika",
-        'Kursi': f"{group.course}-kurs",
-        'Sana': timezone.now().strftime("%d.%m.%Y"),
-        'results_table': results_list,
+        # Sarlavha ma'lumotlari — shablon {{ Guruh }}, {{ Fakultet }} ... ishlatadi
+        'Guruh':           group.name,
+        'Fakultet':        getattr(group, 'faculty', 'Iqtisodiyot va pedagogika'),
+        'Kursi':           f"{group.course}-kurs",
+        'Test_nomi':       test_nomi,
+        'Sana':            timezone.now().strftime("%d.%m.%Y"),
+
+        # Jadval satrlari
+        'results_table':   results_list,
+
+        # Statistika
+        'talabalar_soni':  str(total_students),
+        'besh_soni':       str(grade_5),
+        'tort_soni':       str(grade_4),
+        'uch_soni':        str(grade_3),
+        'ikki_soni':       str(grade_2),
     }
 
-    template_path = os.path.join(settings.BASE_DIR, 'apps/results/templates/results/docx/vedmost_template.docx')
-    
+    template_path = os.path.join(
+        settings.BASE_DIR,
+        'apps', 'results', 'templates', 'results', 'docx', 'vedmost_template.docx'
+    )
+
     if not os.path.exists(template_path):
-        return HttpResponse('Template topilmadi', status=500)
+        return HttpResponse(f'Shablon topilmadi: {template_path}', status=500)
 
     try:
         doc = DocxTemplate(template_path)
         doc.render(context)
-        
+
+        # Fayl nomidagi bo'shliq va maxsus belgilarni almashtiramiz
+        safe_group_name = group.name.replace(' ', '_').replace("'", '')
+        filename = f"Vedmost_{safe_group_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
+
         response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            content_type=(
+                'application/vnd.openxmlformats-officedocument'
+                '.wordprocessingml.document'
+            )
         )
-        filename = f"Vedmost_{group.name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Disposition'] = (
+            f'attachment; filename="{filename}"'
+        )
         doc.save(response)
         return response
+
     except Exception as e:
-        import traceback
         traceback.print_exc()
-        return HttpResponse(f'Xatolik: {str(e)}', status=500)
+        return HttpResponse(f'Render xatoligi: {str(e)}', status=500)
+
 
     
 from django.shortcuts import render
