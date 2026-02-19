@@ -12,7 +12,7 @@ from apps.students.views import student_list_view, StudentViewSet
 from apps.groups.views import group_list_view, GroupViewSet
 from apps.subjects.views import subject_list_view, SubjectViewSet
 from apps.tests.views import test_list_view, TestViewSet, take_test_view, edit_test_view, QuestionViewSet, archived_tests_view
-from apps.results.views import result_list_view, TestResultViewSet, JamlanmaQaytnomaView
+from apps.results.views import result_list_view, TestResultViewSet, JamlanmaQaytnomaView, export_docx_view
 
 from apps.directions.views import direction_list_view, DirectionViewSet
 from apps.accounts.views import CustomTokenObtainPairView
@@ -75,6 +75,7 @@ urlpatterns = [
     path('api/accounts/', include('apps.accounts.urls')),
     path('api/logs/', include('apps.logs.urls')),
     path('api/monitoring/', include('apps.monitoring.urls')),
+    path('api/results/export_docx/', export_docx_view, name='export_docx'),
 
 
     # Frontend Pages
