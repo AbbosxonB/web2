@@ -214,7 +214,7 @@ def export_docx_view(request):
     if user.role not in ['admin', 'dean']:
         return HttpResponse('Huquq yo\'q', status=403)
 
-    group_id = request.GET.get('group_id')
+    group_id = request.GET.get('group_id') or request.GET.get('student__group')
     if not group_id:
         return HttpResponse('Group ID talab qilinadi', status=400)
 
