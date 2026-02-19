@@ -387,190 +387,183 @@ class VedmostView(LoginRequiredMixin, View):
 
 class JamlanmaQaytnomaView(View):
     def get(self, request):
-        if not request.user.is_authenticated:
-            from django.shortcuts import redirect
-            return redirect('/login/')
+        try:
+            if not request.user.is_authenticated:
+                from django.shortcuts import redirect
+                return redirect('/login/')
 
-        user = request.user
-        if user.role == 'student':
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden("Ruxsat yo'q")
-            
-        if user.role != 'admin':
-            from apps.accounts.models import ModuleAccess
-            if not ModuleAccess.objects.filter(user=user, module='vedmost', can_view=True).exists():
+            user = request.user
+            if user.role == 'student':
                 from django.http import HttpResponseForbidden
-                return HttpResponseForbidden("Ruxsat yo'q (Module Access Denied)")
+                return HttpResponseForbidden("Ruxsat yo'q")
+                
+            if user.role != 'admin':
+                from apps.accounts.models import ModuleAccess
+                if not ModuleAccess.objects.filter(user=user, module='vedmost', can_view=True).exists():
+                    from django.http import HttpResponseForbidden
+                    return HttpResponseForbidden("Ruxsat yo'q (Module Access Denied)")
 
-        # 1. Base Data
-        directions = Direction.objects.all().order_by('name')
-        
-        # 2. Get Filter Params
-        direction_id = request.GET.get('direction_id')
-        course = request.GET.get('course')
-        group_id = request.GET.get('group_id')
-        export_excel = request.GET.get('export_excel')
-        
-        context = {
-            'page': 'jamlanma_qaytnoma',
-            'directions': directions,
-            'selected_direction_id': int(direction_id) if direction_id else None,
-            'selected_course': int(course) if course else None,
-            'selected_group_id': int(group_id) if group_id else None,
-            'courses': [],
-            'groups': [],
-        }
-        
-        # 3. Dependent Logic
-        if direction_id:
-            try:
-                selected_direction = Direction.objects.get(id=direction_id)
-                context['selected_direction'] = selected_direction
-                
-                # Fetch available courses
-                available_courses = Group.objects.filter(direction=selected_direction.name).values_list('course', flat=True).distinct().order_by('course')
-                context['courses'] = available_courses
-                
-                if course:
-                    # Fetch Groups
-                    groups = Group.objects.filter(direction=selected_direction.name, course=course).order_by('name')
-                    context['groups'] = groups
+            # 1. Base Data
+            directions = Direction.objects.all().order_by('name')
+            
+            # 2. Get Filter Params
+            direction_id = request.GET.get('direction_id')
+            course = request.GET.get('course')
+            group_id = request.GET.get('group_id')
+            export_excel = request.GET.get('export_excel')
+            
+            context = {
+                'page': 'jamlanma_qaytnoma',
+                'directions': directions,
+                'selected_direction_id': int(direction_id) if direction_id else None,
+                'selected_course': int(course) if course else None,
+                'selected_group_id': int(group_id) if group_id else None,
+                'courses': [],
+                'groups': [],
+            }
+            
+            # 3. Dependent Logic
+            if direction_id:
+                try:
+                    selected_direction = Direction.objects.get(id=direction_id)
+                    context['selected_direction'] = selected_direction
                     
-                    if group_id:
-                        try:
-                            selected_group = Group.objects.get(id=group_id)
-                            context['selected_group'] = selected_group
-                            
-                            # 4. Generate Report
-                            students = Student.objects.filter(group=selected_group).order_by('full_name')
-                            
-                            # Find subjects that have results for this group
-                            # Using 'test__groups' might be safer if TestAssignment is used, 
-                            # but generally 'test__results__student__group' matches actual results.
-                            # Let's use subjects linked to tests that have results for this group.
-                            subjects = Subject.objects.filter(
-                                tests__results__student__group=selected_group
-                            ).distinct().order_by('name')
-                            
-                            # Pre-fetch results
-                            all_results = TestResult.objects.filter(
-                                student__group=selected_group,
-                                test__subject__in=subjects
-                            ).select_related('test', 'test__subject', 'student')
-                            
-                            # Map results: student_id -> subject_id -> score (or list of scores)
-                            # Assuming we want the *latest* or *best* score if multiple? 
-                            # Let's show all scores joined by comma if multiple, or just the latest?
-                            # Excel usually has one column per subject. If multiple tests per subject?
-                            # Maybe "Subject Name" column implies aggregating tests?
-                            # For now, let's just list scores.
-                            
-                            results_map = {}
-                            for res in all_results:
-                                s_id = res.student.id
-                                sub_id = res.test.subject.id
+                    # Fetch available courses
+                    available_courses = Group.objects.filter(direction=selected_direction.name).values_list('course', flat=True).distinct().order_by('course')
+                    context['courses'] = available_courses
+                    
+                    if course:
+                        # Fetch Groups
+                        groups = Group.objects.filter(direction=selected_direction.name, course=course).order_by('name')
+                        context['groups'] = groups
+                        
+                        if group_id:
+                            try:
+                                selected_group = Group.objects.get(id=group_id)
+                                context['selected_group'] = selected_group
                                 
-                                if s_id not in results_map: results_map[s_id] = {}
-                                if sub_id not in results_map[s_id]: results_map[s_id][sub_id] = []
+                                # 4. Generate Report
+                                students = Student.objects.filter(group=selected_group).order_by('full_name')
                                 
-                                results_map[s_id][sub_id].append(str(res.score))
+                                subjects = Subject.objects.filter(
+                                    tests__results__student__group=selected_group
+                                ).distinct().order_by('name')
+                                
+                                # Pre-fetch results
+                                all_results = TestResult.objects.filter(
+                                    student__group=selected_group,
+                                    test__subject__in=subjects
+                                ).select_related('test', 'test__subject', 'student')
+                                
+                                results_map = {}
+                                for res in all_results:
+                                    s_id = res.student.id
+                                    sub_id = res.test.subject.id
+                                    
+                                    if s_id not in results_map: results_map[s_id] = {}
+                                    if sub_id not in results_map[s_id]: results_map[s_id][sub_id] = []
+                                    
+                                    results_map[s_id][sub_id].append(str(res.score))
 
-                            report = []
-                            for index, student in enumerate(students, 1):
-                                row = {
-                                    'number': index,
-                                    'student': student,
-                                    'scores': []
-                                }
-                                s_map = results_map.get(student.id, {})
+                                report = []
+                                for index, student in enumerate(students, 1):
+                                    row = {
+                                        'number': index,
+                                        'student': student,
+                                        'scores': []
+                                    }
+                                    s_map = results_map.get(student.id, {})
+                                    
+                                    for subject in subjects:
+                                        scores_list = s_map.get(subject.id, [])
+                                        scores_str = ", ".join(scores_list) if scores_list else ""
+                                        row['scores'].append({'subject_id': subject.id, 'value': scores_str})
+                                    
+                                    report.append(row)
+                                    
+                                context['subjects'] = subjects
+                                context['report'] = report
+                                
+                                # Calculate Statistics
+                                stats = []
+                                total_students_count = students.count()
                                 
                                 for subject in subjects:
-                                    scores_list = s_map.get(subject.id, [])
-                                    scores_str = ", ".join(scores_list) if scores_list else ""
-                                    row['scores'].append({'subject_id': subject.id, 'value': scores_str})
-                                
-                                report.append(row)
-                                
-                            context['subjects'] = subjects
-                            context['report'] = report
-                            
-                            # Calculate Statistics
-                            stats = []
-                            total_students_count = students.count()
-                            
-                            for subject in subjects:
-                                subject_stats = {
-                                    'subject': subject,
-                                    'total': total_students_count,
-                                    'participated': 0,
-                                    'not_participated': 0,
-                                    'grade_5': 0,
-                                    'grade_4': 0,
-                                    'grade_3': 0,
-                                    'failed': 0
-                                }
-                                
-                                # Get all results for this subject/group
-                                subject_results = [r for r in all_results if r.test.subject.id == subject.id]
-                                
-                                unique_student_ids = set()
-                                for res in subject_results:
-                                    unique_student_ids.add(res.student.id)
+                                    subject_stats = {
+                                        'subject': subject,
+                                        'total': total_students_count,
+                                        'participated': 0,
+                                        'not_participated': 0,
+                                        'grade_5': 0,
+                                        'grade_4': 0,
+                                        'grade_3': 0,
+                                        'failed': 0
+                                    }
                                     
-                                    # Logic update: Handle 50-point scale specifically
-                                    grade = 0
-                                    if res.max_score == 50:
-                                        # User requested specific scale for "Ball" (assumed 50 max)
-                                        # 30-34 -> 3
-                                        # 35-39 -> 4
-                                        # 40-50 -> 5
-                                        if res.score >= 40:
-                                            grade = 5
-                                        elif res.score >= 35:
-                                            grade = 4
-                                        elif res.score >= 30:
-                                            grade = 3
+                                    # Get all results for this subject/group
+                                    subject_results = [r for r in all_results if r.test.subject.id == subject.id]
+                                    
+                                    unique_student_ids = set()
+                                    for res in subject_results:
+                                        unique_student_ids.add(res.student.id)
+                                        
+                                        grade = 0
+                                        if res.max_score == 50:
+                                            if res.score >= 40:
+                                                grade = 5
+                                            elif res.score >= 35:
+                                                grade = 4
+                                            elif res.score >= 30:
+                                                grade = 3
+                                            else:
+                                                grade = 2
                                         else:
-                                            grade = 2 # Fail
-                                    else:
-                                        # Default percentage-based logic
-                                        p = res.percentage
-                                        if p >= 90:
-                                            grade = 5
-                                        elif p >= 70:
-                                            grade = 4
-                                        elif p >= 60:
-                                            grade = 3
+                                            p = res.percentage
+                                            if p >= 90:
+                                                grade = 5
+                                            elif p >= 70:
+                                                grade = 4
+                                            elif p >= 60:
+                                                grade = 3
+                                            else:
+                                                grade = 2
+
+                                        if grade == 5:
+                                            subject_stats['grade_5'] += 1
+                                        elif grade == 4:
+                                            subject_stats['grade_4'] += 1
+                                        elif grade == 3:
+                                            subject_stats['grade_3'] += 1
                                         else:
-                                            grade = 2 # Fail
-
-                                    if grade == 5:
-                                        subject_stats['grade_5'] += 1
-                                    elif grade == 4:
-                                        subject_stats['grade_4'] += 1
-                                    elif grade == 3:
-                                        subject_stats['grade_3'] += 1
-                                    else:
-                                        subject_stats['failed'] += 1
+                                            subject_stats['failed'] += 1
+                                    
+                                    subject_stats['participated'] = len(unique_student_ids) 
+                                    subject_stats['not_participated'] = total_students_count - subject_stats['participated']
+                                    
+                                    stats.append(subject_stats)
+                                    
+                                context['stats'] = stats
                                 
-                                subject_stats['participated'] = len(unique_student_ids) 
-                                subject_stats['not_participated'] = total_students_count - subject_stats['participated']
-                                
-                                stats.append(subject_stats)
-                                
-                            context['stats'] = stats
-                            
-                            # 5. Export Logic
-                            if export_excel == 'true':
-                                return self.export_to_excel(selected_group, subjects, report, stats)
+                                # 5. Export Logic
+                                if export_excel == 'true':
+                                    return self.export_to_excel(selected_group, subjects, report, stats)
 
-                        except Group.DoesNotExist:
-                            pass
+                            except Group.DoesNotExist:
+                                pass
 
-            except Direction.DoesNotExist:
-                pass
+                except Direction.DoesNotExist:
+                    pass
 
-        return render(request, 'results/jamlanma_qaytnoma.html', context)
+            return render(request, 'results/jamlanma_qaytnoma.html', context)
+
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            return HttpResponse(
+                f"<pre>ERROR: {str(e)}\n\n{tb}</pre>",
+                status=500,
+                content_type='text/html'
+            )
 
     def export_to_excel(self, group, subjects, report, stats):
         import openpyxl
