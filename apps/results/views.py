@@ -214,17 +214,14 @@ from apps.results.models import TestResult
 
 
 def export_docx_view(request):
-    """Vedmost export - har bir talaba alohida SATR bo'lib chiqadi"""
-
     user = request.user
-
+    
     if not user.is_authenticated:
         return HttpResponse('Unauthorized', status=401)
-
+    
     if user.role not in ['admin', 'dean']:
         return HttpResponse("Huquq yo'q", status=403)
 
-    # Frontend /api/results/export_docx/?student__group=69 yoki ?group_id=69 yuborishi mumkin
     group_id = request.GET.get('group_id') or request.GET.get('student__group')
     if not group_id:
         return HttpResponse('group_id parametri talab qilinadi', status=400)
@@ -236,83 +233,78 @@ def export_docx_view(request):
     try:
         group = Group.objects.get(id=group_id)
     except Group.DoesNotExist:
-        return HttpResponse('Guruh topilmadi', status=404)
+        return HttpResponse(f'Guruh topilmadi: id={group_id}', status=404)
 
-    students = Student.objects.filter(group=group).order_by('full_name')
+    try:
+        students = Student.objects.filter(group=group).order_by('full_name')
+        subjects = (
+            Subject.objects
+            .filter(tests__groups__id=group_id)
+            .distinct()
+            .order_by('name')
+        )
 
-    # Ushbu guruhga tegishli testlar orqali fanlarni topish
-    subjects = (
-        Subject.objects
-        .filter(tests__groups__id=group_id)
-        .distinct()
-        .order_by('name')
-    )
+        # Test nomi
+        try:
+            from apps.tests.models import Test
+            test_obj = Test.objects.filter(groups__id=group_id).first()
+            test_nomi = test_obj.name if test_obj else ''
+        except Exception as e:
+            test_nomi = ''
 
-    # Test nomi - birinchi testni olamiz (agar kerak bo'lsa)
-    from apps.tests.models import Test
-    test_obj = Test.objects.filter(groups__id=group_id).first()
-    test_nomi = test_obj.name if test_obj else ''
+        results_list = []
+        for index, student in enumerate(students, start=1):
+            all_scores = []
+            for subject in subjects:
+                qs = (
+                    TestResult.objects
+                    .filter(student=student, test__subject=subject)
+                    .order_by('started_at')
+                )
+                if qs.exists():
+                    subject_scores = ', '.join(str(r.score) for r in qs)
+                else:
+                    subject_scores = '-'
+                all_scores.append(subject_scores)
 
-    # -----------------------------------------------------------
-    # results_list — har bir element = 1 ta SATR (talaba)
-    # score = barcha fanlar bo'yicha ballar bitta string sifatida
-    # -----------------------------------------------------------
-    results_list = []
-    for index, student in enumerate(students, start=1):
-
-        all_scores = []
-        for subject in subjects:
-            qs = (
-                TestResult.objects
-                .filter(student=student, test__subject=subject)
-                .order_by('started_at')
-            )
-            if qs.exists():
-                # Har bir test natijasini ko'rsatamiz
-                subject_scores = ', '.join(str(r.score) for r in qs)
-            else:
-                subject_scores = '-'
-            all_scores.append(subject_scores)
-
-        results_list.append({
-            'number':    str(index),
-            'full_name': student.full_name,
-            # Shablon {{ r.score }} ishlatadi — bir xil nom bo'lishi shart
-            'score':     ' | '.join(all_scores) if all_scores else '-',
-            'signature': '',
-        })
-
-    # -----------------------------------------------------------
-    # Statistika
-    # -----------------------------------------------------------
-    total_students = students.count()
-
-    # Barcha test natijalari ushbu guruh uchun
-    all_results = TestResult.objects.filter(student__group=group)
-
-    grade_5 = all_results.filter(score__gte=86).count()
-    grade_4 = all_results.filter(score__gte=71, score__lt=86).count()
-    grade_3 = all_results.filter(score__gte=56, score__lt=71).count()
-    grade_2 = all_results.filter(score__lt=56).count()
-
-    context = {
-        # Sarlavha ma'lumotlari — shablon {{ Guruh }}, {{ Fakultet }} ... ishlatadi
-        'Guruh':           group.name,
-        'Fakultet':        getattr(group, 'faculty', 'Iqtisodiyot va pedagogika'),
-        'Kursi':           f"{group.course}-kurs",
-        'Test_nomi':       test_nomi,
-        'Sana':            timezone.now().strftime("%d.%m.%Y"),
-
-        # Jadval satrlari
-        'results_table':   results_list,
+            results_list.append({
+                'number':    str(index),
+                'full_name': student.full_name,
+                'score':     ' | '.join(all_scores) if all_scores else '-',
+                'signature': '',
+            })
 
         # Statistika
-        'talabalar_soni':  str(total_students),
-        'besh_soni':       str(grade_5),
-        'tort_soni':       str(grade_4),
-        'uch_soni':        str(grade_3),
-        'ikki_soni':       str(grade_2),
-    }
+        all_results = TestResult.objects.filter(student__group=group)
+        total_students = students.count()
+        grade_5 = all_results.filter(score__gte=86).count()
+        grade_4 = all_results.filter(score__gte=71, score__lt=86).count()
+        grade_3 = all_results.filter(score__gte=56, score__lt=71).count()
+        grade_2 = all_results.filter(score__lt=56).count()
+
+        context = {
+            'Guruh':          group.name,
+            'Fakultet':       getattr(group, 'faculty', 'Iqtisodiyot va pedagogika'),
+            'Kursi':          f"{group.course}-kurs",
+            'Test_nomi':      test_nomi,
+            'Sana':           timezone.now().strftime("%d.%m.%Y"),
+            'results_table':  results_list,
+            'talabalar_soni': str(total_students),
+            'besh_soni':      str(grade_5),
+            'tort_soni':      str(grade_4),
+            'uch_soni':       str(grade_3),
+            'ikki_soni':      str(grade_2),
+        }
+
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        # Ma'lumot yig'ishda xatolik — aniq xabar qaytaramiz
+        return HttpResponse(
+            f'MA\'LUMOT YIG\'ISHDA XATOLIK:\n{str(e)}\n\nTraceback:\n{tb}',
+            content_type='text/plain',
+            status=500
+        )
 
     template_path = os.path.join(
         settings.BASE_DIR,
@@ -320,14 +312,17 @@ def export_docx_view(request):
     )
 
     if not os.path.exists(template_path):
-        return HttpResponse(f'Shablon topilmadi: {template_path}', status=500)
+        return HttpResponse(
+            f'SHABLON TOPILMADI!\nQidirilgan joy: {template_path}',
+            content_type='text/plain',
+            status=500
+        )
 
     try:
         doc = DocxTemplate(template_path)
         doc.render(context)
 
-        # Fayl nomidagi bo'shliq va maxsus belgilarni almashtiramiz
-        safe_group_name = group.name.replace(' ', '_').replace("'", '')
+        safe_group_name = group.name.replace(' ', '_').replace("'", '').replace("'", '')
         filename = f"Vedmost_{safe_group_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
 
         response = HttpResponse(
@@ -336,15 +331,20 @@ def export_docx_view(request):
                 '.wordprocessingml.document'
             )
         )
-        response['Content-Disposition'] = (
-            f'attachment; filename="{filename}"'
-        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         doc.save(response)
         return response
 
     except Exception as e:
-        traceback.print_exc()
-        return HttpResponse(f'Render xatoligi: {str(e)}', status=500)
+        import traceback
+        tb = traceback.format_exc()
+        # Render xatoligi — aniq xabar
+        return HttpResponse(
+            f'DOCX RENDER XATOLIGI:\n{str(e)}\n\nTraceback:\n{tb}',
+            content_type='text/plain',
+            status=500
+        )
+
 
 
     
