@@ -64,7 +64,8 @@ urlpatterns = [
     path('take/<int:test_id>/', take_test_view, name='take_test_shortcut'),
     path('admin/', admin.site.urls),
     
-    # API endpoints
+    # API endpoints - specific paths MUST come before router include
+    path('api/results/export_docx/', export_docx_view, name='export_docx'),
     path('api/', include(router.urls)),
     path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
@@ -75,7 +76,6 @@ urlpatterns = [
     path('api/accounts/', include('apps.accounts.urls')),
     path('api/logs/', include('apps.logs.urls')),
     path('api/monitoring/', include('apps.monitoring.urls')),
-    path('api/results/export_docx/', export_docx_view, name='export_docx'),
 
 
     # Frontend Pages
