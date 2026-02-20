@@ -364,12 +364,37 @@ def export_docx_view(request):
         return response
 
     except Exception as e:
-        import traceback
+        import traceback, zipfile, re, os
         tb = traceback.format_exc()
-        # Render xatoligi — aniq xabar
+
+        parts_info = []
+        try:
+            with zipfile.ZipFile(template_path) as z:
+                for name in z.namelist():
+                    if name.startswith("word/") and name.endswith(".xml"):
+                        xml = z.read(name).decode("utf-8", errors="ignore")
+                        if "endfor" in xml or "{% endfor" in xml or "{%tr endfor" in xml:
+                            # snippet chiqaramiz
+                            for m in re.finditer("endfor", xml):
+                                start = max(0, m.start() - 60)
+                                end = min(len(xml), m.start() + 60)
+                                parts_info.append(f"{name}: ..." + xml[start:end] + "...")
+                                if len(parts_info) >= 10:
+                                    break
+                    if len(parts_info) >= 10:
+                        break
+
+            diag = (
+                f"\n\nTEMPLATE PATH: {template_path}"
+                f"\nSIZE: {os.path.getsize(template_path)} bytes"
+                f"\nHITS:\n" + ("\n---\n".join(parts_info) if parts_info else "NO endfor FOUND in word/*.xml")
+            )
+        except Exception as ee:
+            diag = f"\n\nDIAG ERROR: {ee}"
+
         return HttpResponse(
-            f'DOCX RENDER XATOLIGI:\n{str(e)}\n\nTraceback:\n{tb}',
-            content_type='text/plain',
+            f"DOCX RENDER XATOLIGI:\n{str(e)}\n\nTraceback:\n{tb}{diag}",
+            content_type="text/plain",
             status=500
         )
 
