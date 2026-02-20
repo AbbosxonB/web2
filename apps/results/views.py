@@ -215,7 +215,6 @@ from apps.results.models import TestResult
 
 import os
 import re
-import zipfile
 import traceback
 
 from django.conf import settings
@@ -239,24 +238,27 @@ def export_docx_view(request):
     if not group_id:
         return HttpResponse("group_id parametri talab qilinadi", status=400)
 
-    from apps.groups.models import Group
-    from apps.subjects.models import Subject
-    from apps.students.models import Student
-    from apps.tests.models import Test
-
-    # Template pathni OLDINDAN aniqlab qo'yamiz (diagnostika uchun ham kerak)
     template_path = os.path.join(
         settings.BASE_DIR,
         "apps", "results", "templates", "results", "docx", "vedmost_template.docx"
     )
 
-    try:
-        group = Group.objects.get(id=group_id)
-    except Group.DoesNotExist:
-        return HttpResponse(f"Guruh topilmadi: id={group_id}", status=404)
+    if not os.path.exists(template_path):
+        return HttpResponse(
+            f"SHABLON TOPILMADI!\nQidirilgan joy: {template_path}",
+            content_type="text/plain",
+            status=500,
+        )
 
     # ===== 1) MA'LUMOT YIG'ISH =====
     try:
+        from apps.groups.models import Group
+        from apps.subjects.models import Subject
+        from apps.students.models import Student
+        from apps.tests.models import Test
+
+        group = Group.objects.get(id=group_id)
+
         students = Student.objects.filter(group=group).order_by("full_name")
 
         subjects = (
@@ -269,82 +271,86 @@ def export_docx_view(request):
         test_obj = Test.objects.filter(groups__id=group_id).first()
         test_nomi = test_obj.title if test_obj else ""
 
+        # Har bir talaba uchun natija
         results_list = []
         for index, student in enumerate(students, start=1):
-            all_scores = []
+            if subjects.exists():
+                all_scores = []
+                for subject in subjects:
+                    qs = TestResult.objects.filter(
+                        student=student,
+                        test__subject=subject,
+                    ).order_by("id")
 
-            for subject in subjects:
-                qs = (
-                    TestResult.objects
-                    .filter(student=student, test__subject=subject)
-                )
-
-                # started_at field bo'lmasa yiqilmasin:
-                try:
-                    qs = qs.order_by("started_at")
-                except Exception:
-                    # started_at yo'q bo'lsa, hech bo'lmaganda id bo'yicha
-                    qs = qs.order_by("id")
-
-                if qs.exists():
-                    subject_scores = ", ".join(str(r.score) for r in qs)
-                else:
-                    subject_scores = "-"
-
-                all_scores.append(subject_scores)
+                    if qs.exists():
+                        subject_scores = ", ".join(str(r.score) for r in qs)
+                    else:
+                        subject_scores = "-"
+                    all_scores.append(subject_scores)
+                score_str = " | ".join(all_scores)
+            else:
+                # Fan bo'lmasa — oxirgi natijani olish
+                last = TestResult.objects.filter(student=student).order_by("id").last()
+                score_str = str(last.score) if last else "-"
 
             results_list.append({
-                "number": str(index),
+                "number":    str(index),
                 "full_name": student.full_name,
-                "score": " | ".join(all_scores) if all_scores else "-",
+                "score":     score_str,
                 "signature": "",
             })
 
+        # Statistika — har bir talaba bo'yicha eng oxirgi natijaga qarab
         all_results = TestResult.objects.filter(student__group=group)
         total_students = students.count()
 
-        grade_5 = all_results.filter(score__gte=86).count()
-        grade_4 = all_results.filter(score__gte=71, score__lt=86).count()
-        grade_3 = all_results.filter(score__gte=56, score__lt=71).count()
-        grade_2 = all_results.filter(score__lt=56).count()
+        grade_5 = all_results.filter(score__gte=86).values("student").distinct().count()
+        grade_4 = all_results.filter(score__gte=71, score__lt=86).values("student").distinct().count()
+        grade_3 = all_results.filter(score__gte=56, score__lt=71).values("student").distinct().count()
+        grade_2 = all_results.filter(score__lt=56).values("student").distinct().count()
+
+        # Fakultet va kurs — model maydoniga qarab xavfsiz olish
+        fakultet = (
+            getattr(group, "faculty", None)
+            or getattr(group, "fakultet", None)
+            or "—"
+        )
+        # Agar faculty — ForeignKey bo'lsa
+        if hasattr(fakultet, "name"):
+            fakultet = fakultet.name
+
+        kurs = getattr(group, "course", None) or getattr(group, "kurs", None) or ""
 
         context = {
-            "Guruh": group.name,
-            "Fakultet": getattr(group, "faculty", "Iqtisodiyot va pedagogika"),
-            "Kursi": f"{getattr(group, 'course', '')}-kurs",
-            "Test_nomi": test_nomi,
-            "Sana": timezone.now().strftime("%d.%m.%Y"),
-            "results_table": results_list,
+            "Guruh":          group.name,
+            "Fakultet":       str(fakultet),
+            "Kursi":          f"{kurs}-kurs" if kurs else "—",
+            "Test_nomi":      test_nomi,
+            "Sana":           timezone.now().strftime("%d.%m.%Y"),
+            "results_table":  results_list,
             "talabalar_soni": str(total_students),
-            "besh_soni": str(grade_5),
-            "tort_soni": str(grade_4),
-            "uch_soni": str(grade_3),
-            "ikki_soni": str(grade_2),
+            "besh_soni":      str(grade_5),
+            "tort_soni":      str(grade_4),
+            "uch_soni":       str(grade_3),
+            "ikki_soni":      str(grade_2),
         }
 
+    except Group.DoesNotExist:
+        return HttpResponse(f"Guruh topilmadi: id={group_id}", status=404)
     except Exception as e:
-        tb = traceback.format_exc()
         return HttpResponse(
-            f"MA'LUMOT YIG'ISHDA XATOLIK:\n{str(e)}\n\nTraceback:\n{tb}",
+            f"MA'LUMOT YIG'ISHDA XATOLIK:\n{str(e)}\n\n{traceback.format_exc()}",
             content_type="text/plain",
-            status=500
+            status=500,
         )
 
-    # ===== 2) TEMPLATE BORLIGINI TEKSHIRISH =====
-    if not os.path.exists(template_path):
-        return HttpResponse(
-            f"SHABLON TOPILMADI!\nQidirilgan joy: {template_path}",
-            content_type="text/plain",
-            status=500
-        )
-
-    # ===== 3) DOCX RENDER + DIAGNOSTIKA =====
+    # ===== 2) DOCX RENDER =====
     try:
         doc = DocxTemplate(template_path)
         doc.render(context)
 
-        safe_group_name = re.sub(r"[^0-9A-Za-zА-Яа-яЎўҚқҒғҲҳʻ'_-]+", "_", group.name)
-        filename = f"Vedmost_{safe_group_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
+        safe_name = re.sub(r"[^\w\-]+", "_", group.name)
+        filename = f"Vedmost_{safe_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
 
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -354,39 +360,11 @@ def export_docx_view(request):
         return response
 
     except Exception as e:
-        tb = traceback.format_exc()
-
-        # endfor qayerdaligini topib beradigan diagnostika (word/*.xml)
-        parts_info = []
-        try:
-            with zipfile.ZipFile(template_path) as z:
-                for name in z.namelist():
-                    if name.startswith("word/") and name.endswith(".xml"):
-                        xml = z.read(name).decode("utf-8", errors="ignore")
-                        if "endfor" in xml:
-                            for m in re.finditer("endfor", xml):
-                                start = max(0, m.start() - 60)
-                                end = min(len(xml), m.start() + 60)
-                                parts_info.append(f"{name}: ..." + xml[start:end] + "...")
-                                if len(parts_info) >= 10:
-                                    break
-                    if len(parts_info) >= 10:
-                        break
-
-            diag = (
-                f"\n\nTEMPLATE PATH: {template_path}"
-                f"\nSIZE: {os.path.getsize(template_path)} bytes"
-                f"\nHITS:\n" + ("\n---\n".join(parts_info) if parts_info else "NO 'endfor' FOUND in word/*.xml")
-            )
-        except Exception as ee:
-            diag = f"\n\nDIAG ERROR: {ee}"
-
         return HttpResponse(
-            f"DOCX RENDER XATOLIGI:\n{str(e)}\n\nTraceback:\n{tb}{diag}",
+            f"DOCX RENDER XATOLIGI:\n{str(e)}\n\n{traceback.format_exc()}",
             content_type="text/plain",
-            status=500
+            status=500,
         )
-
 
 
     
