@@ -248,7 +248,7 @@ def export_docx_view(request):
         try:
             from apps.tests.models import Test
             test_obj = Test.objects.filter(groups__id=group_id).first()
-            test_nomi = test_obj.name if test_obj else ''
+            test_nomi = getattr(test_obj, "title", "") if test_obj else ""
         except Exception as e:
             import traceback, zipfile, re
             tb = traceback.format_exc()
