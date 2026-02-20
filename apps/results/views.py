@@ -213,168 +213,157 @@ from docxtpl import DocxTemplate
 from apps.results.models import TestResult
 
 
+import os
+import re
+import zipfile
+import traceback
+
+from django.conf import settings
+from django.http import HttpResponse
+from django.utils import timezone
+from docxtpl import DocxTemplate
+
+from apps.results.models import TestResult
+
+
 def export_docx_view(request):
     user = request.user
-    
+
     if not user.is_authenticated:
-        return HttpResponse('Unauthorized', status=401)
-    
-    if user.role not in ['admin', 'dean']:
+        return HttpResponse("Unauthorized", status=401)
+
+    if getattr(user, "role", None) not in ["admin", "dean"]:
         return HttpResponse("Huquq yo'q", status=403)
 
-    group_id = request.GET.get('group_id') or request.GET.get('student__group')
+    group_id = request.GET.get("group_id") or request.GET.get("student__group")
     if not group_id:
-        return HttpResponse('group_id parametri talab qilinadi', status=400)
+        return HttpResponse("group_id parametri talab qilinadi", status=400)
 
     from apps.groups.models import Group
     from apps.subjects.models import Subject
     from apps.students.models import Student
+    from apps.tests.models import Test
+
+    # Template pathni OLDINDAN aniqlab qo'yamiz (diagnostika uchun ham kerak)
+    template_path = os.path.join(
+        settings.BASE_DIR,
+        "apps", "results", "templates", "results", "docx", "vedmost_template.docx"
+    )
 
     try:
         group = Group.objects.get(id=group_id)
     except Group.DoesNotExist:
-        return HttpResponse(f'Guruh topilmadi: id={group_id}', status=404)
+        return HttpResponse(f"Guruh topilmadi: id={group_id}", status=404)
 
+    # ===== 1) MA'LUMOT YIG'ISH =====
     try:
-        students = Student.objects.filter(group=group).order_by('full_name')
+        students = Student.objects.filter(group=group).order_by("full_name")
+
         subjects = (
             Subject.objects
             .filter(tests__groups__id=group_id)
             .distinct()
-            .order_by('name')
+            .order_by("name")
         )
 
-        # Test nomi
-        try:
-            from apps.tests.models import Test
-            test_obj = Test.objects.filter(groups__id=group_id).first()
-            test_nomi = getattr(test_obj, "title", "") if test_obj else ""
-        except Exception as e:
-            import traceback, zipfile, re
-            tb = traceback.format_exc()
-
-            extra = ""
-            try:
-                with zipfile.ZipFile(template_path) as z:
-                    xml = z.read("word/document.xml").decode("utf-8", errors="ignore")
-
-                # endfor qayerlarda borligini topamiz (atrofi bilan)
-                idxs = [m.start() for m in re.finditer("endfor", xml)]
-                snippets = []
-                for i in idxs[:10]:
-                    snippets.append(xml[max(0, i-80): i+80])
-
-                extra = (
-                    f"\n\nTEMPLATE FILE INFO:\n"
-                    f"path={template_path}\n"
-                    f"size={os.path.getsize(template_path)} bytes\n"
-                    f"endfor_count={len(idxs)}\n"
-                    f"snippets:\n" + "\n---\n".join(snippets)
-                )
-            except Exception as ee:
-                extra = f"\n\nDIAG ERROR: {ee}"
-
-            return HttpResponse(
-                f"DOCX RENDER XATOLIGI:\n{str(e)}\n\nTraceback:\n{tb}{extra}",
-                content_type="text/plain",
-                status=500
-            )
+        test_obj = Test.objects.filter(groups__id=group_id).first()
+        test_nomi = test_obj.title if test_obj else ""
 
         results_list = []
         for index, student in enumerate(students, start=1):
             all_scores = []
+
             for subject in subjects:
                 qs = (
                     TestResult.objects
                     .filter(student=student, test__subject=subject)
-                    .order_by('started_at')
                 )
+
+                # started_at field bo'lmasa yiqilmasin:
+                try:
+                    qs = qs.order_by("started_at")
+                except Exception:
+                    # started_at yo'q bo'lsa, hech bo'lmaganda id bo'yicha
+                    qs = qs.order_by("id")
+
                 if qs.exists():
-                    subject_scores = ', '.join(str(r.score) for r in qs)
+                    subject_scores = ", ".join(str(r.score) for r in qs)
                 else:
-                    subject_scores = '-'
+                    subject_scores = "-"
+
                 all_scores.append(subject_scores)
 
             results_list.append({
-                'number':    str(index),
-                'full_name': student.full_name,
-                'score':     ' | '.join(all_scores) if all_scores else '-',
-                'signature': '',
+                "number": str(index),
+                "full_name": student.full_name,
+                "score": " | ".join(all_scores) if all_scores else "-",
+                "signature": "",
             })
 
-        # Statistika
         all_results = TestResult.objects.filter(student__group=group)
         total_students = students.count()
+
         grade_5 = all_results.filter(score__gte=86).count()
         grade_4 = all_results.filter(score__gte=71, score__lt=86).count()
         grade_3 = all_results.filter(score__gte=56, score__lt=71).count()
         grade_2 = all_results.filter(score__lt=56).count()
 
         context = {
-            'Guruh':          group.name,
-            'Fakultet':       getattr(group, 'faculty', 'Iqtisodiyot va pedagogika'),
-            'Kursi':          f"{group.course}-kurs",
-            'Test_nomi':      test_nomi,
-            'Sana':           timezone.now().strftime("%d.%m.%Y"),
-            'results_table':  results_list,
-            'talabalar_soni': str(total_students),
-            'besh_soni':      str(grade_5),
-            'tort_soni':      str(grade_4),
-            'uch_soni':       str(grade_3),
-            'ikki_soni':      str(grade_2),
+            "Guruh": group.name,
+            "Fakultet": getattr(group, "faculty", "Iqtisodiyot va pedagogika"),
+            "Kursi": f"{getattr(group, 'course', '')}-kurs",
+            "Test_nomi": test_nomi,
+            "Sana": timezone.now().strftime("%d.%m.%Y"),
+            "results_table": results_list,
+            "talabalar_soni": str(total_students),
+            "besh_soni": str(grade_5),
+            "tort_soni": str(grade_4),
+            "uch_soni": str(grade_3),
+            "ikki_soni": str(grade_2),
         }
 
     except Exception as e:
-        import traceback
         tb = traceback.format_exc()
-        # Ma'lumot yig'ishda xatolik — aniq xabar qaytaramiz
         return HttpResponse(
-            f'MA\'LUMOT YIG\'ISHDA XATOLIK:\n{str(e)}\n\nTraceback:\n{tb}',
-            content_type='text/plain',
+            f"MA'LUMOT YIG'ISHDA XATOLIK:\n{str(e)}\n\nTraceback:\n{tb}",
+            content_type="text/plain",
             status=500
         )
 
-    template_path = os.path.join(
-        settings.BASE_DIR,
-        'apps', 'results', 'templates', 'results', 'docx', 'vedmost_template.docx'
-    )
-
+    # ===== 2) TEMPLATE BORLIGINI TEKSHIRISH =====
     if not os.path.exists(template_path):
         return HttpResponse(
-            f'SHABLON TOPILMADI!\nQidirilgan joy: {template_path}',
-            content_type='text/plain',
+            f"SHABLON TOPILMADI!\nQidirilgan joy: {template_path}",
+            content_type="text/plain",
             status=500
         )
 
+    # ===== 3) DOCX RENDER + DIAGNOSTIKA =====
     try:
         doc = DocxTemplate(template_path)
         doc.render(context)
 
-        safe_group_name = group.name.replace(' ', '_').replace("'", '').replace("'", '')
+        safe_group_name = re.sub(r"[^0-9A-Za-zА-Яа-яЎўҚқҒғҲҳʻ'_-]+", "_", group.name)
         filename = f"Vedmost_{safe_group_name}_{timezone.now().strftime('%d-%m-%Y')}.docx"
 
         response = HttpResponse(
-            content_type=(
-                'application/vnd.openxmlformats-officedocument'
-                '.wordprocessingml.document'
-            )
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         doc.save(response)
         return response
 
     except Exception as e:
-        import traceback, zipfile, re, os
         tb = traceback.format_exc()
 
+        # endfor qayerdaligini topib beradigan diagnostika (word/*.xml)
         parts_info = []
         try:
             with zipfile.ZipFile(template_path) as z:
                 for name in z.namelist():
                     if name.startswith("word/") and name.endswith(".xml"):
                         xml = z.read(name).decode("utf-8", errors="ignore")
-                        if "endfor" in xml or "{% endfor" in xml or "{%tr endfor" in xml:
-                            # snippet chiqaramiz
+                        if "endfor" in xml:
                             for m in re.finditer("endfor", xml):
                                 start = max(0, m.start() - 60)
                                 end = min(len(xml), m.start() + 60)
@@ -387,7 +376,7 @@ def export_docx_view(request):
             diag = (
                 f"\n\nTEMPLATE PATH: {template_path}"
                 f"\nSIZE: {os.path.getsize(template_path)} bytes"
-                f"\nHITS:\n" + ("\n---\n".join(parts_info) if parts_info else "NO endfor FOUND in word/*.xml")
+                f"\nHITS:\n" + ("\n---\n".join(parts_info) if parts_info else "NO 'endfor' FOUND in word/*.xml")
             )
         except Exception as ee:
             diag = f"\n\nDIAG ERROR: {ee}"
