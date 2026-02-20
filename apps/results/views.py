@@ -250,7 +250,35 @@ def export_docx_view(request):
             test_obj = Test.objects.filter(groups__id=group_id).first()
             test_nomi = test_obj.name if test_obj else ''
         except Exception as e:
-            test_nomi = ''
+            import traceback, zipfile, re
+            tb = traceback.format_exc()
+
+            extra = ""
+            try:
+                with zipfile.ZipFile(template_path) as z:
+                    xml = z.read("word/document.xml").decode("utf-8", errors="ignore")
+
+                # endfor qayerlarda borligini topamiz (atrofi bilan)
+                idxs = [m.start() for m in re.finditer("endfor", xml)]
+                snippets = []
+                for i in idxs[:10]:
+                    snippets.append(xml[max(0, i-80): i+80])
+
+                extra = (
+                    f"\n\nTEMPLATE FILE INFO:\n"
+                    f"path={template_path}\n"
+                    f"size={os.path.getsize(template_path)} bytes\n"
+                    f"endfor_count={len(idxs)}\n"
+                    f"snippets:\n" + "\n---\n".join(snippets)
+                )
+            except Exception as ee:
+                extra = f"\n\nDIAG ERROR: {ee}"
+
+            return HttpResponse(
+                f"DOCX RENDER XATOLIGI:\n{str(e)}\n\nTraceback:\n{tb}{extra}",
+                content_type="text/plain",
+                status=500
+            )
 
         results_list = []
         for index, student in enumerate(students, start=1):
